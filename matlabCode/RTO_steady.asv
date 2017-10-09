@@ -64,9 +64,9 @@ G{2} = @(c0,c,u)(D(c0,c)/Dmax - 1);
 
 % Initial conditions
 u0 = [15, 15, 0, 0]; % L/min
+CSTR_Opt(model_reactOrder, model_kVal, model_cIn, u0, model_V, phi, G) 
 
-model_opt = CSTR_Opt(model_reactOrder, model_kVal, model_cIn, u0, model_V, phi, G);
-model_cSol = CSTR(model_reactOrder, model_kVal, model_cIn, model_opt, model_V);
+cSol0 = CSTR(model_reactOrder, model_kVal, model_cIn, u0, model_V);
 
 
 
