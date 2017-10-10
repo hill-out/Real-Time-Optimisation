@@ -1,5 +1,6 @@
 % script for running steady state real time optimisation
 
+clear
 
 % #### /Reation Data ####
 %
@@ -25,7 +26,7 @@ model_H = [3.5; 1.5];           % kcal/mol
 
 %Plant reation
 plant_reactOrder = model_reactOrder;
-plant_kval = [1.4; 0.4];        % L/(mol min)
+plant_kVal = [1.4; 0.4];        % L/(mol min)
 plant_cIn = [2.5, 1.5, 0, 0];   % mol/L
 plant_V = model_V;              % L
 plant_H = model_H;              % kcal/mol
@@ -41,7 +42,7 @@ plant_H = model_H;              % kcal/mol
 % G1 = Q/Qmax - 1 = 0
 % G2 = D/Dmax - 1 = 0
 %
-% where: Qmax = 110 kcal
+% where: Qmax = 110 kcal(/min)?
 %        Dmax = 0.1
 %
 % #### Optimisation Parameters/ ####
@@ -52,20 +53,31 @@ J = @(c0,c,u)(c(3)^2*(u(1)+u(2))^2/(u(1)*c0(1))-w*(u(1)^2+u(2)^2));
 phi = @(c0,c,u)(-J(c0,c,u));
 
 % Constraint 1
-Qmax = 110; %kcal
-ext = {@(c0,c)(c(3)-c0(3)),@(c0,c)(c(4)-c0(4))};
-Q = @(c0,c)(ext{1}(c0,c)*model_H(1) + ext{2}(c0,c)*model_H(2));
-G{1} = @(c0,c,u)(Q(c0,c)/Qmax - 1);
+model_Qmax = 110; %kcal(/min)?
+plant_Qmax = 110; %kcal(/min)?
+
+model_Q = @(c0,c,u)(model_V*(model_kVal(1)*c(1)*c(2)*model_H(1)+model_kVal(2)*c(2)^2*model_H(2)));
+plant_Q = @(c0,c,u)(plant_V*(plant_kVal(1)*c(1)*c(2)*plant_H(1)+plant_kVal(2)*c(2)^2*plant_H(2)));
+
+model_G{1} = @(c0,c,u)(model_Q(c0,c,u)/model_Qmax - 1);
+plant_G{1} = @(c0,c,u)(plant_Q(c0,c,u)/plant_Qmax - 1);
 
 % Constraint 2
-Dmax = 0.1;
-D = @(c0,c)(c(4)/sum(c));
-G{2} = @(c0,c,u)(D(c0,c)/Dmax - 1);
+model_Dmax = 0.1;
+plant_Dmax = 0.1;
+
+model_D = @(c0,c)(c(4)/sum(c));
+plant_D = model_D;
+
+model_G{2} = @(c0,c,u)(model_D(c0,c)/model_Dmax - 1);
+plant_G{2} = @(c0,c,u)(plant_D(c0,c)/plant_Dmax - 1);
 
 % Initial conditions
-u0 = [15, 15, 0, 0]; % L/min
+u0 = [10, 10, 0, 0]; % L/min
 
-model_opt = CSTR_Opt(model_reactOrder, model_kVal, model_cIn, u0, model_V, phi, G);
+plant_opt = CSTR_Opt(plant_reactOrder, plant_kVal, plant_cIn, u0, plant_V, phi, plant_G);
+
+model_opt = CSTR_Opt(model_reactOrder, model_kVal, model_cIn, u0, model_V, phi, model_G);
 model_cSol = CSTR(model_reactOrder, model_kVal, model_cIn, model_opt, model_V);
 
 
