@@ -17,7 +17,8 @@ v0 = sum(volFlow);
 nReact = size(reactOrder);
 
 %solve steady state
-cSol = fsolve(@massBal,c0);
+options = optimset('Display','off');
+cSol = fsolve(@massBal,c0,options);
 
     function [F] = massBal(c)
         %evaluates the species balance

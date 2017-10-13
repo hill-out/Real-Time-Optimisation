@@ -75,10 +75,10 @@ plant_G{2} = @(c0,c,u)(plant_D(c0,c)/plant_Dmax - 1);
 % Initial conditions
 u0 = [10, 10, 0, 0]; % L/min
 
-plant_opt = CSTR_Opt(plant_reactOrder, plant_kVal, plant_cIn, u0, plant_V, phi, plant_G);
-
 model_opt = CSTR_Opt(model_reactOrder, model_kVal, model_cIn, u0, model_V, phi, model_G);
-model_cSol = CSTR(model_reactOrder, model_kVal, model_cIn, model_opt, model_V);
+model_cSol = CSTR(model_reactOrder, model_kVal, model_cIn, [model_opt(1), model_opt(2), 0, 0], model_V);
+
+convexApprox(phi, [1, 1], [49, 49], 1, model_opt, model_reactOrder, model_kVal, model_cIn, model_V);
 
 
 
