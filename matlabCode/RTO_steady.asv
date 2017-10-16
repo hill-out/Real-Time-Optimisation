@@ -80,8 +80,8 @@ model_cSol = CSTR(model_reactOrder, model_kVal, model_cIn, [model_opt(1), model_
 
 %plant_opt = CSTR_Opt(plant_reactOrder, plant_kVal, plant_cIn, u0, plant_V, phi, plant_G);
 
-% Convex approximation parameters
-convPara = convexApprox({phi,model_G{1},model_G{2}}, [1e-5, 1e-5], [50, 50],...
+
+phiPara = convexApprox({phi,model_G{1},model_G{2}}, [1e-5, 1e-5], [50, 50],...
     [2,1,1], model_opt, model_reactOrder, model_kVal, model_cIn, model_V);
 
 

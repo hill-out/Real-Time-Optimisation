@@ -32,7 +32,7 @@ for j = 1:length(funArray)
 end
 
 % run solver for chosen degree
-convPara = zeros(1,length(deg)*3);
+convPara = zeros(1,sum(deg+1));
 
 for funN = 1:length(funArray)
     N = funN*3-2;
