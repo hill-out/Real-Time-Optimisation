@@ -69,7 +69,7 @@ plant_G{2} = @(u)(CSTR_Dcon(u,plant_Dmax,plant_cIn,plant_reactOrder,plant_kVal,p
 % Initial conditions
 u0 = [10, 10, 0, 0]; % L/min
 
-model_opt = CSTR_Opt(model_cIn, u0, model_phi, model_G);
+model_opt = CSTR_Opt(u0, model_phi, model_G);
 model_cSolOpt = CSTR(model_reactOrder, model_kVal, model_cIn, [model_opt(1), model_opt(2), 0, 0], model_V);
 
 %plant_opt = CSTR_Opt(plant_reactOrder, plant_kVal, plant_cIn, u0, plant_V, phi, plant_G);
@@ -100,7 +100,7 @@ conv_dG{1} = @(u)(convPara([1,2]+3)');
 conv_dG{2} = @(u)(convPara([1,2]+6)');
 conv_dfunArray = {conv_dphi, conv_dG{:}};
 
-
+steadyRTO(conv_funArray,conv_dfunArray,{plant_phi,plant_G{:}},[],0.8,model_opt);
 
 
 
