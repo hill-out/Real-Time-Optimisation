@@ -93,10 +93,13 @@ conv_phi = @(u)(model_funOpt(1)+convPara([1,2])*(u-model_opt)'+...
     0.5*(u-model_opt)*(convPara(3)*eye(2))*(u-model_opt)');
 conv_G{1} = @(u)(model_funOpt(2)+convPara([1,2]+3)*(u-model_opt)');
 conv_G{2} = @(u)(model_funOpt(3)+convPara([1,2]+6)*(u-model_opt)');
+conv_funArray = {conv_phi, conv_G{:}};
 
 conv_dphi = @(u)(convPara([1,2])'+(convPara(3))*(u-model_opt)');
 conv_dG{1} = @(u)(convPara([1,2]+3)');
 conv_dG{2} = @(u)(convPara([1,2]+6)');
+conv_dfunArray = {conv_dphi, conv_dG{:}};
+
 
 
 
