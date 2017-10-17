@@ -1,4 +1,4 @@
-function [convPara] = convexApprox(funArray, umin, umax, deg, opt, reactOrder, kVal, c0, V)
+function [convPara] = convexApprox(funArray, umin, umax, deg, opt, funOpt, reactOrder, kVal, cIn, V)
 % convex approximation of a 2 variable input problem (later expand for n
 % variable)
 
@@ -11,25 +11,22 @@ nP2 = 31;
 funmesh = zeros(nP1,nP2,length(funArray));
 du1mesh = zeros(size(u1mesh));
 du2mesh = zeros(size(u2mesh));
+uBase = zeros(2,4); 
 
 % solve CSTR and fun_val for all points
 for i = 1:numel(u1mesh)  
-    cSol = CSTR(reactOrder, kVal, c0, [u1mesh(i),u2mesh(i), 0, 0], V);
+    cSol = CSTR(reactOrder, kVal, cIn, [u1mesh(i),u2mesh(i), 0, 0], V);
     for j = 1:length(funArray)
-        funmesh(i+numel(u1mesh)*(j-1)) = funArray{j}(c0,cSol,[u1mesh(i), u2mesh(i)]);
+        u = uBase;
+        u(2,:) = cSol;
+        u(1,[1,2]) = [u1mesh(i), u2mesh(i)];
+        funmesh(i+numel(u1mesh)*(j-1)) = funArray{j}(u);
     end
 end
 
 % calc diff from opt point
 du1mesh = u1mesh - opt(1);
 du2mesh = u2mesh - opt(2);
-
-% find opt point
-cOpt = CSTR(reactOrder, kVal, c0, [opt(1), opt(2), 0, 0], V);
-funOpt = zeros(1,length(funArray));
-for j = 1:length(funArray)
-    funOpt(j) = funArray{j}(c0,cOpt,[opt(1), opt(2), 0, 0]);
-end
 
 % run solver for chosen degree
 convPara = zeros(1,length(deg)*3);

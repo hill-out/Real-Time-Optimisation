@@ -48,41 +48,59 @@ plant_H = model_H;              % kcal/mol
 % #### Optimisation Parameters/ ####
 
 % Cost
-w = 0.004; %(mol min)/L^2
-J = @(c0,c,u)(c(3)^2*(u(1)+u(2))^2/(u(1)*c0(1))-w*(u(1)^2+u(2)^2));
-phi = @(c0,c,u)(-J(c0,c,u));
+w = 0.004;
+model_phi = @(u)(CSTR_cost(u, w, model_cIn, model_reactOrder, model_kVal, model_V));
+plant_phi = @(u)(CSTR_cost(u, w, plant_cIn, plant_reactOrder, plant_kVal, plant_V));
 
 % Constraint 1
 model_Qmax = 110; %kcal(/min)?
 plant_Qmax = 110; %kcal(/min)?
 
-model_Q = @(c0,c,u)(model_V*(model_kVal(1)*c(1)*c(2)*model_H(1)+model_kVal(2)*c(2)^2*model_H(2)));
-plant_Q = @(c0,c,u)(plant_V*(plant_kVal(1)*c(1)*c(2)*plant_H(1)+plant_kVal(2)*c(2)^2*plant_H(2)));
-
-model_G{1} = @(c0,c,u)(model_Q(c0,c,u)/model_Qmax - 1);
-plant_G{1} = @(c0,c,u)(plant_Q(c0,c,u)/plant_Qmax - 1);
+model_G{1} = @(u)(CSTR_Qcon(u,model_H,model_Qmax,model_cIn,model_reactOrder,model_kVal,model_V));
+plant_G{1} = @(u)(CSTR_Qcon(u,plant_H,plant_Qmax,plant_cIn,plant_reactOrder,plant_kVal,plant_V));
 
 % Constraint 2
 model_Dmax = 0.1;
 plant_Dmax = 0.1;
 
-model_D = @(c0,c)(c(4)/sum(c));
-plant_D = model_D;
-
-model_G{2} = @(c0,c,u)(model_D(c0,c)/model_Dmax - 1);
-plant_G{2} = @(c0,c,u)(plant_D(c0,c)/plant_Dmax - 1);
+model_G{2} = @(u)(CSTR_Dcon(u,model_Dmax,model_cIn,model_reactOrder,model_kVal,model_V));
+plant_G{2} = @(u)(CSTR_Dcon(u,plant_Dmax,plant_cIn,plant_reactOrder,plant_kVal,plant_V));
 
 % Initial conditions
 u0 = [10, 10, 0, 0]; % L/min
 
-model_opt = CSTR_Opt(model_reactOrder, model_kVal, model_cIn, u0, model_V, phi, model_G);
-model_cSol = CSTR(model_reactOrder, model_kVal, model_cIn, [model_opt(1), model_opt(2), 0, 0], model_V);
+model_opt = CSTR_Opt(model_cIn, u0, model_phi, model_G);
+model_cSolOpt = CSTR(model_reactOrder, model_kVal, model_cIn, [model_opt(1), model_opt(2), 0, 0], model_V);
 
 %plant_opt = CSTR_Opt(plant_reactOrder, plant_kVal, plant_cIn, u0, plant_V, phi, plant_G);
 
+% find opt point
+model_funArray = {model_phi,model_G{1},model_G{2}};
+model_funOpt = zeros(1,3);
+for j = 1:length(model_funArray)
+    u = zeros(2,4);
+    u(2,:) = model_cSolOpt;
+    u(1,[1,2]) = model_opt;
+    model_funOpt(j) = model_funArray{j}(u);
+end
+
 % Convex approximation parameters
-convPara = convexApprox({phi,model_G{1},model_G{2}}, [1e-5, 1e-5], [50, 50],...
-    [2,1,1], model_opt, model_reactOrder, model_kVal, model_cIn, model_V);
+convPara = convexApprox(model_funArray, [1, 1], [50, 50],...
+    [2,1,1], model_opt, model_funOpt, model_reactOrder, model_kVal, model_cIn, model_V);
+
+% set-up MA opt
+conv_phi = @(u)(model_funOpt(1)+convPara([1,2])*(u-model_opt)'+...
+    0.5*(u-model_opt)*(convPara(3)*eye(2))*(u-model_opt)');
+conv_G{1} = @(u)(model_funOpt(2)+convPara([1,2]+3)*(u-model_opt)');
+conv_G{2} = @(u)(model_funOpt(3)+convPara([1,2]+6)*(u-model_opt)');
+
+conv_dphi = @(u)(convPara([1,2])'+(convPara(3))*(u-model_opt)');
+conv_dG{1} = @(u)(convPara([1,2]+3)');
+conv_dG{2} = @(u)(convPara([1,2]+6)');
+
+
+
+
 
 
 
