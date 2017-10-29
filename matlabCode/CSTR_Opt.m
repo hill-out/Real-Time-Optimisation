@@ -14,7 +14,9 @@ if ~isa(modelCost,'function_handle')
     error('modelCost is not the expected type, function_handle')
 end
 
-[x_opt] = fmincon(@calcCost, x0(1:2), [], [], [], [], [0, 0], [50, 50], @conFunc);
+options = optimoptions(@fmincon,'Display','Off');
+
+[x_opt] = fmincon(@calcCost, x0(1:2), [], [], [], [], [0, 0], [50, 50], @conFunc, options);
 
 
     function [cost] = calcCost(x)

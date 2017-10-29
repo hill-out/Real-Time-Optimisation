@@ -54,7 +54,7 @@ while solved == 0 || first == 1
     i = i + 1;
     first = 0;
     
-    if i == 10
+    if i == 20
         solved = 1;
     end
 end

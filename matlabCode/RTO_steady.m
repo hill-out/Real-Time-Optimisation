@@ -100,7 +100,7 @@ conv_dG{1} = @(u)(convPara([1,2]+3)');
 conv_dG{2} = @(u)(convPara([1,2]+6)');
 conv_dfunArray = {conv_dphi, conv_dG{:}};
 
-steadyRTO(conv_funArray,conv_dfunArray,{plant_phi,plant_G{:}},[],0.8,model_opt);
+steadyRTO(conv_funArray,conv_dfunArray,{plant_phi,plant_G{:}},[],0.5,model_opt);
 
 
 

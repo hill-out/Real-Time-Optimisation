@@ -1,63 +1,111 @@
-function [] = dynamicRTO(modelFun,modelGrad,plantFun,plantGrad,gain,u0)
+function [] = dynamicRTO(modelFun,plantFun,gain,u0,c0,tau)
 % Takes the modelFun (either convex or other) and the plantFun and uses a
-% standard MA to work out the optimum position of the plant
+% standard multiple unit MA to work out the optimum position of the plant
 
-% Initial run
-if isempty(plantGrad)
-    l = dfunc(plantFun,u0,1e-2);
-else
-    l = cellFuncHandle2vec(plantGrad,{[u0(1),u0(2),0,0]},ones(size(plantGrad))');
+% Base Case
+base = struct('C', zeros(1001, 4),...
+    'J', zeros(1001, 1),...
+    'G', zeros(1001, 2));
+
+[bC, bJ, bG] = plantFun(c0,u0,1000,tau);
+
+base.C = bC;
+base.J = bJ;
+base.G = bG;
+
+% Other Units
+delta = 50e-2;
+other = struct('C', zeros(1001, 4, numel(u0)),...
+    'J', zeros(1001, 1, numel(u0)),...
+    'G', zeros(1001, 2, numel(u0)));
+
+for i = 1:numel(u0)
+    uNew = u0;
+    uNew(i) = uNew(i) + delta;
+    
+    [oC, oJ, oG] = plantFun(c0,uNew,1000,tau);
+    
+    other.C(:,:,i) = oC;
+    other.J(:,:,i) = oJ;
+    other.G(:,:,i) = oG;
 end
 
-p = cellFuncHandle2vec(plantFun,{[u0(1),u0(2),0,0]},ones(size(plantFun))');
+% Grad
+gradJ = (other.J(end,:,:) - repmat(base.J(end,:),1,1,numel(u0)))/(2*delta);
+gradG = (other.G(end,:,:) - repmat(base.G(end,:),1,1,numel(u0)))/(2*delta);
+
+% Model Steady State
 m = cellFuncHandle2vec(modelFun,{[u0(1),u0(2)]},ones(size(modelFun))');
 
-e = (p-m)';
+e(1) = base.J(end) - m(1);
+e(2:3) = base.G(end,:)' - m(2:3);
+
+l = [permute(gradJ,[3,2,1]),permute(gradG,[3,2,1])];
 
 modifiedFun{1} = @(v)(modelFun{1}(v)+e(1,1)+(v-u0)*(l(:,1)));
 modifiedFun{2} = @(v)(modelFun{2}(v)+e(1,2)+(v-u0)*(l(:,2)));
 modifiedFun{3} = @(v)(modelFun{3}(v)+e(1,3)+(v-u0)*(l(:,3)));
-modifiedGrad = [];
 
 first = 1;
 solved = 0;
 u = u0;
-i = 2;
+j = 2;
+
 while solved == 0 || first == 1
     
-    u(i,:) = CSTR_Opt(u0, modifiedFun{1}, {modifiedFun{2:end}});
+    u(j,:) = CSTR_Opt(u(j-1,:), modifiedFun{1}, {modifiedFun{2:end}});
     % calc the current plant gradient
-    if isempty(plantGrad)
-        pGrad = dfunc(plantFun,u(i,:));
-    else
-        pGrad = cellFuncHandle2vec(plantGrad,{u(i,:)},ones(size(plantGrad))');
+
+    [bC, bJ, bG] = plantFun(base.C(end,:),u(j,:),1000,tau);
+    
+    base.C((j-1)*1000+1:j*1000+1,:) = bC;
+    base.J((j-1)*1000+1:j*1000+1,:) = bJ;
+    base.G((j-1)*1000+1:j*1000+1,:) = bG;
+    
+    % Other Units
+    newC0 = other.C(end,:,:);
+    clear other oC oJ oG
+    
+    other = struct('C', zeros(1001, 4, numel(u0)),...
+        'J', zeros(1001, 1, numel(u0)),...
+        'G', zeros(1001, 2, numel(u0)));
+    
+    for i = 1:numel(u0)
+        uNew = u(j,:);
+        uNew(i) = uNew(i) + delta;
+
+        [oC, oJ, oG] = plantFun(newC0(1,:,i),uNew,1000,tau);
+
+        other.C(:,:,i) = oC;
+        other.J(:,:,i) = oJ;
+        other.G(:,:,i) = oG;
     end
     
-    % calc the current model gradient
-    if isempty(modifiedGrad)
-        mGrad = dfunc(modelFun,u(i,:));
-    else
-        mGrad = cellFuncHandle2vec(modelGrad,{u(i,:)},ones(size(modelGrad))',2);
-    end
+    % Grad
+    gradJ = (other.J(end,:,:) - repmat(base.J(end,:),1,1,numel(u0)))/(2*delta);
+    gradG = (other.G(end,:,:) - repmat(base.G(end,:),1,1,numel(u0)))/(2*delta);
     
-    % calc the current value
-    p(:,i) = cellFuncHandle2vec(plantFun,{u(i,:)},ones(size(plantFun))');
-    m(:,i) = cellFuncHandle2vec(modelFun,{u(i,:)},ones(size(modelFun))');
+    % Model Steady State
+    m = cellFuncHandle2vec(modelFun,{u(j,:)},ones(size(modelFun))');
     
-    e(i,:) = (p(:,i) - m(:,i))'.*gain + (1-gain).*e(i-1,:);
-    l(:,:,i) = (pGrad - mGrad).*gain + (1-gain).*l(:,:,i-1);
+    newe(1) = base.J(end) - m(1);
+    newe(2:3) = base.G(end,:)' - m(2:3);
+    newl = [permute(gradJ,[3,2,1]),permute(gradG,[3,2,1])];
     
-    modifiedFun{1} = @(v)(modelFun{1}(v)+e(i,1)+(v-u(i,:))*(l(:,1,i)));
-    modifiedFun{2} = @(v)(modelFun{2}(v)+e(i,2)+(v-u(i,:))*(l(:,2,i)));
-    modifiedFun{3} = @(v)(modelFun{3}(v)+e(i,3)+(v-u(i,:))*(l(:,3,i)));
+    e(j,:) = newe.*gain + (1-gain).*e(j-1,:);
+    l(:,:,j) = newl.*gain + (1-gain).*l(:,:,j-1);
     
-    i = i + 1;
+    modifiedFun{1} = @(v)(modelFun{1}(v)+e(j,1)+(v-u(j,:))*(l(:,1,j)));
+    modifiedFun{2} = @(v)(modelFun{2}(v)+e(j,2)+(v-u(j,:))*(l(:,2,j)));
+    modifiedFun{3} = @(v)(modelFun{3}(v)+e(j,3)+(v-u(j,:))*(l(:,3,j)));
+    
     first = 0;
     
-    if i == 10
+    if j == 20
         solved = 1;
+    else
+       j = j + 1;
     end
 end
-
 
 end
