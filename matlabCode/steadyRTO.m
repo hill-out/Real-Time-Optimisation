@@ -17,6 +17,7 @@ e = (p-m)';
 modifiedFun{1} = @(v)(modelFun{1}(v)+e(1,1)+(v-u0)*(l(:,1)));
 modifiedFun{2} = @(v)(modelFun{2}(v)+e(1,2)+(v-u0)*(l(:,2)));
 modifiedFun{3} = @(v)(modelFun{3}(v)+e(1,3)+(v-u0)*(l(:,3)));
+modifiedGrad = [];
 
 first = 1;
 solved = 0;
@@ -33,27 +34,27 @@ while solved == 0 || first == 1
     end
     
     % calc the current model gradient
-    if isempty(modelGrad)
-        mGrad = dfunc(modelFun,u(i),0);
+    if isempty(modifiedGrad)
+        mGrad = dfunc(modelFun,u(i,:));
     else
         mGrad = cellFuncHandle2vec(modelGrad,{u(i,:)},ones(size(modelGrad))',2);
     end
     
     % calc the current value
-    p = cellFuncHandle2vec(plantFun,{[u0(1),u0(2),0,0]},ones(size(plantFun))');
-    m = cellFuncHandle2vec(modelFun,{u(i,:)},ones(size(modelFun))');
+    p(:,i) = cellFuncHandle2vec(plantFun,{u(i,:)},ones(size(plantFun))');
+    m(:,i) = cellFuncHandle2vec(modelFun,{u(i,:)},ones(size(modelFun))');
     
-    e(i,:) = (p - m)'.*gain + (1-gain).*e(i-1,:);
-    l(:,:,i) = (pGrad - mGrad').*gain + (1-gain).*l(:,:,i-1);
+    e(i,:) = (p(:,i) - m(:,i))'.*gain + (1-gain).*e(i-1,:);
+    l(:,:,i) = (pGrad - mGrad).*gain + (1-gain).*l(:,:,i-1);
     
-    modifiedFun{1} = @(v)(modelFun{1}(v)+e(i,1)+(v-u0)*(l(:,1,i)));
-    modifiedFun{2} = @(v)(modelFun{2}(v)+e(i,2)+(v-u0)*(l(:,2,i)));
-    modifiedFun{3} = @(v)(modelFun{3}(v)+e(i,3)+(v-u0)*(l(:,3,i)));
+    modifiedFun{1} = @(v)(modelFun{1}(v)+e(i,1)+(v-u(i,:))*(l(:,1,i)));
+    modifiedFun{2} = @(v)(modelFun{2}(v)+e(i,2)+(v-u(i,:))*(l(:,2,i)));
+    modifiedFun{3} = @(v)(modelFun{3}(v)+e(i,3)+(v-u(i,:))*(l(:,3,i)));
     
     i = i + 1;
     first = 0;
     
-    if i == 100
+    if i == 10
         solved = 1;
     end
 end

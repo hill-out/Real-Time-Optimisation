@@ -5,6 +5,10 @@ uSize = size(u);
 vol = u(1,:);
 
 if uSize(1) == 1
+    if uSize(2) == 2
+        u = [u(1),u(2),0,0];
+    end
+    
     cSol = CSTR(reactOrder, kVal, cIn, u, V);
 else
     cSol = u(2,:);
