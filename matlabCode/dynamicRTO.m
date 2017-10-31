@@ -7,7 +7,7 @@ base = struct('C', zeros(1001, 4),...
     'J', zeros(1001, 1),...
     'G', zeros(1001, 2));
 
-[bC, bJ, bG] = plantFun(c0,u0,1000,tau);
+[bC, bJ, bG] = plantFun(c0,u0,1000,100);
 
 base.C = bC;
 base.J = bJ;
@@ -23,7 +23,7 @@ for i = 1:numel(u0)
     uNew = u0;
     uNew(i) = uNew(i) + delta;
     
-    [oC, oJ, oG] = plantFun(c0,uNew,1000,tau);
+    [oC, oJ, oG] = plantFun(c0,uNew,1000,100);
     
     other.C(:,:,i) = oC;
     other.J(:,:,i) = oJ;
@@ -39,7 +39,7 @@ m = cellFuncHandle2vec(modelFun,{[u0(1),u0(2)]},ones(size(modelFun))');
 
 e(1) = base.J(end) - m(1);
 e(2:3) = base.G(end,:)' - m(2:3);
-
+e = e;
 l = [permute(gradJ,[3,2,1]),permute(gradG,[3,2,1])];
 
 modifiedFun{1} = @(v)(modelFun{1}(v)+e(1,1)+(v-u0)*(l(:,1)));
@@ -54,6 +54,7 @@ j = 2;
 while solved == 0 || first == 1
     
     u(j,:) = CSTR_Opt(u(j-1,:), modifiedFun{1}, {modifiedFun{2:end}});
+    
     % calc the current plant gradient
 
     [bC, bJ, bG] = plantFun(base.C(end,:),u(j,:),1000,tau);
@@ -87,10 +88,11 @@ while solved == 0 || first == 1
     
     % Model Steady State
     m = cellFuncHandle2vec(modelFun,{u(j,:)},ones(size(modelFun))');
+    mGrad = dfunc(modelFun,u(j,:));
     
     newe(1) = base.J(end) - m(1);
     newe(2:3) = base.G(end,:)' - m(2:3);
-    newl = [permute(gradJ,[3,2,1]),permute(gradG,[3,2,1])];
+    newl = [permute(gradJ,[3,2,1]),permute(gradG,[3,2,1])]-mGrad;
     
     e(j,:) = newe.*gain + (1-gain).*e(j-1,:);
     l(:,:,j) = newl.*gain + (1-gain).*l(:,:,j-1);
@@ -101,11 +103,15 @@ while solved == 0 || first == 1
     
     first = 0;
     
-    if j == 20
+    converged = all(all([((e(j,:) - e(j-1,:))./e(j-1,:) < 1e-3);((l(:,:,j,:) - l(:,:,j-1))./l(:,:,j-1) < 1e-3)]));
+    
+    if j*tau > 2000 || converged
         solved = 1;
     else
        j = j + 1;
     end
 end
+
+plot(linspace(0,(j)*tau,length(u)),u)
 
 end
