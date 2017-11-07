@@ -20,5 +20,3 @@ for i = 1:numel(u)
         df(i,j) = (f{j}(uUp)-f{j}(uDown))/(2*e);
     end
 end
-
-end

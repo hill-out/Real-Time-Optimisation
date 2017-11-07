@@ -104,7 +104,7 @@ conv_dG{2} = @(u)(convPara([1,2]+6)');
 conv_dfunArray = {conv_dphi, conv_dG{:}};
 
 % Run plant optimisation
-dynamicRTO(conv_funArray,plant_fun,0.2,model_opt,plant_c0,5);
+dynamicRTO(conv_funArray,plant_fun,0.8,model_opt,plant_c0,5);
 
 
 
