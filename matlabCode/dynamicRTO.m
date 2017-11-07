@@ -103,9 +103,9 @@ while solved == 0 || first == 1
     
     first = 0;
     
-    converged = all(all([((e(j,:) - e(j-1,:))./e(j-1,:) < 1e-3);((l(:,:,j,:) - l(:,:,j-1))./l(:,:,j-1) < 1e-3)]));
+    converged = all(all([(abs((e(j,:) - e(j-1,:))./e(j-1,:)) < 1e-3);(abs((l(:,:,j,:) - l(:,:,j-1))./l(:,:,j-1)) < 1e-3)]));
     
-    if j*tau > 2000 || converged
+    if j*tau > 5000 || converged
         solved = 1;
     else
        j = j + 1;
