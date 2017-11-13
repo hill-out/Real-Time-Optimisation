@@ -1,4 +1,4 @@
-function r = rate(c, k, sO, rO)
+function r = rate(c, k, s, o)
 % calculates the rate of reaction for a irrevesable CSTR
 % 
 % c - Current conc.       [nx1]  (mol/L)      [c_A; c_B; c_C; ...c_X]
@@ -20,8 +20,8 @@ function r = rate(c, k, sO, rO)
 
 %% missing inputs
 if nargin < 4 || isempty(rO) %no reaction order
-    r = s
-    r = -r(r<0); % assume elementary
+    o = -s;
+    o(o<0) = 0; % assume elementary
 end
 
 %% calculate the rate
@@ -35,8 +35,8 @@ end
 % 
 
 c = repmat(c,1,size(k,2));
-baseM = c.^(-o);
-r = k.*prod(s*prod(baseM,1));
+baseM = c.^(o);
+r = s*(k.*prod(baseM,1))';
 
 
 end
