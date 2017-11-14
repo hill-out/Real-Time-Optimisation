@@ -58,10 +58,10 @@ m.convCon2 = @(x)(convModel([m.convCon2Para,0], x, m.opt', m.optCon(2)));
 
 m.convCostGrad = @(x)(convGrad(m.convCostPara, x, m.opt'));
 m.convCon1Grad = @(x)(convGrad([m.convCon1Para,0], x, m.opt'));
-m.convCon1Grad = @(x)(convGrad([m.convCon2Para,0], x, m.opt'));
+m.convCon2Grad = @(x)(convGrad([m.convCon2Para,0], x, m.opt'));
 
 m.conv = {m.convCost, m.convCon1, m.convCon2};
-m.convGrad = {m.convCostGrad, m.convCon1Grad, m.convCon2Grad};
+m.cGrad = {m.convCostGrad, m.convCon1Grad, m.convCon2Grad};
 
 p.c0 = p.steModel(m.optFull);
 
@@ -70,7 +70,7 @@ p.dynFun = {p.dynModel,...
     @(x,c0,t)(nE(CSTRcon(p.dynModel(x,c0,t), p.k),1)),...
     @(x,c0,t)(nE(CSTRcon(p.dynModel(x,c0,t), p.k),2))};
 
-multiUnitTransRTO(m.conv, p.dynFun, 0.1, m.optFull, p.c0, 30);
+multiUnitTransRTO(m.conv, m.cGrad, p.dynFun, 0.1, m.optFull, p.c0, 30);
 
     function [cSol] = CSTRsteady(u, c_in, k)
         % solves the CSTR at steady state
@@ -181,7 +181,7 @@ multiUnitTransRTO(m.conv, p.dynFun, 0.1, m.optFull, p.c0, 30);
         dy = p(1:2)' + p(3)*dx;
     end
 
-    function [] = multiUnitTransRTO(convFunc, convGrad, plantFunc, gain, u0, c0, tau)
+    function [] = multiUnitTransRTO(convFunc, cGrad, plantFunc, gain, u0, c0, tau)
         % solve the transient RTO problem using the multiple units approach
         %
         % convFunc - convex approximation of the model
@@ -194,56 +194,137 @@ multiUnitTransRTO(m.conv, p.dynFun, 0.1, m.optFull, p.c0, 30);
         %
         %
         
-        du = 50e-5;
+        du = 50e-3;
         %% first modification
         % first order modifier
         conv0 = convCell2vec(convFunc, u0(1:2));
-        [c,plant0] = plantCell2vec(plantFunc(2:end), u0);
+        [c,plant0] = plantCell2vec(plantFunc, u0);
         
         e = plant0 - conv0;
         
         % initialise reactors
-        base.C = c;
+        base.C = c';
         base.J = plant0(1);
-        base.G = repmat(plant0(2:end),1,1,numel(u));
+        base.G = permute(repmat(plant0(2:end),1,1,2),[1 3 2]);
         
-        other.C = zeros(0,4);
-        other.J = zeros(0, );
-        other.G = zeros();
+        other.C = zeros(0, 2, 4);
+        other.J = zeros(0, 2);
+        other.G = zeros(0, 2, numel(plant0(2:end)));
         
+        % get plant gradient
+        [plantGradJ, plantGradG] = plantCellGrad(plantFunc, u0);
+        
+        % get modified grad
+        mGrad = zeros(1, 2, 3);
+        
+        % second order modifier
+        l = zeros(1, 2, 3);
+        l(1, :, 1) = plantGradJ;
+        l(1, :, 2:end) = plantGradG;
+        
+        modifiedFunc{1} = @(v)(convFunc{1}(v)+e(1,1)+(l(end,:,1))*(v-u0(1:2)));
+        modifiedFunc{2} = @(v)(convFunc{2}(v)+e(1,2)+(l(end,:,2))*(v-u0(1:2)));
+        modifiedFunc{3} = @(v)(convFunc{3}(v)+e(1,3)+(l(end,:,3))*(v-u0(1:2)));
+        
+        modifiedGrad{1} = @(v)(cGrad{1}(v)'+l(end,:,1));
+        modifiedGrad{2} = @(v)(cGrad{2}(v)'+l(end,:,2));
+        modifiedGrad{3} = @(v)(cGrad{3}(v)'+l(end,:,3));
+        
+        %run 
+        unsolved = 1;
+        i = 2;
+        while unsolved
+            % get new u
+            newU = fmincon(modifiedFunc{1}, u0(1:2,i-1), [], [], [], [], [0, 0],...
+                [50, 50], @(x)deal(convCell2vec({modifiedFunc{2:end}},x),[]), options_fmincon);
+            
+            u0(:,i) = zeros(4,1);
+            u0(1:2,i) = newU;
+            
+            % first order modifier
+            conv0 = convCell2vec(convFunc, u0(1:2,i));
+            [c,plant0] = plantCell2vec(plantFunc, u0(:,i));
+            
+            e(i,:) = (1-gain).*e(i-1,:) + gain.*(plant0 - conv0);
+            
+            c0(:,i) = c;
+            base.C(i,:) = c';
+            base.J(i, 1) = plant0(1);
+            base.G(i,:,:) = repmat(plant0(2:end),2,1);
+            
+            % get plant gradient
+            [plantGradJ, plantGradG] = plantCellGrad(plantFunc, u0(:,i));
+            
+            % get model gradient
+            mGrad(i,:,1) = cGrad{1}(u0(1:2,i));
+            mGrad(i,:,2) = cGrad{2}(u0(1:2,i));
+            mGrad(i,:,3) = cGrad{3}(u0(1:2,i));
+            
+            % second order modifier
+            l(i, :, 1) = (1-gain).*l(i-1,:,1)+gain.*(plantGradJ - mGrad(i,:,1));
+            l(i, :, 2:end) = (1-gain).*l(i-1,:,2:end)-gain.*(plantGradG - mGrad(i,:,2:end));
+            
+            modifiedFunc{1} = @(v)(convFunc{1}(v)+e(i,1)+(l(i,:,1))*(v-u0(1:2,i)));
+            modifiedFunc{2} = @(v)(convFunc{2}(v)+e(i,2)+(l(i,:,2))*(v-u0(1:2,i)));
+            modifiedFunc{3} = @(v)(convFunc{3}(v)+e(i,3)+(l(i,:,3))*(v-u0(1:2,i)));
+            
+            modifiedGrad{1} = @(v)(cGrad{1}(v)'+l(i,:,1));
+            modifiedGrad{2} = @(v)(cGrad{2}(v)'+l(i,:,2));
+            modifiedGrad{3} = @(v)(cGrad{3}(v)'+l(i,:,3));
+            
+            if i > 1000
+                unsolved = 0;
+            else
+                i=i+1;
+            end
+        end
         
         function [vec] = convCell2vec(funCell, x)
             % runs a cell of functions "funCell" with variable "x"
             vec = zeros(size(funCell));
-            for i = 1:numel(funCell)
-                vec(i) = funCell{i}(x);
+            for j = 1:numel(funCell)
+                vec(j) = funCell{j}(x);
             end
         end
         
-        function [vec] = plantCell2vec(funCell, x)
+        
+        function [c, vec] = plantCell2vec(funCell, x, cNew)
             % runs a cell of functions "funCell" with variable "x"
-            vec = zeros(size(funCell));
-            for i = 1:numel(funCell)
-                vec(i) = funCell{i}(x, c0(:,end), tau);
+            if nargin < 3
+                cNew = c0(:,end);
+            end
+            vec = zeros(size(funCell(2:end)));
+            c = funCell{1}(x, cNew, tau);
+            
+            for j = 2:numel(funCell)
+                vec(j-1) = funCell{j}(x, cNew, tau);
             end
         end
         
         function [dJ, dG] = plantCellGrad(funCell, x)
             % calculates the plant gradients using the MU method
             % run other cases
-            other.J(end+1,:) = zeros(size(other.J(1,:));
-            other.G(end+1,:,:) = zeros(size(other(1,:,:));
-            for j = 1:numel(x)
+            other.C(end+1,:,:) = zeros(1, size(other.C,2), size(other.C,3));
+            other.J(end+1,:) = zeros(1, size(other.J,2));
+            other.G(end+1,:,:) = zeros(1, size(other.G,2), size(other.G,3));
+            for j = 1:2
                 udu = x;
                 udu(j) = udu(j)+du;
-                
-                out = plantCell2vec(funCell, x);
+                if size(other.C,1) == 1
+                    curC = c0;
+                else
+                    curC = permute(other.C(end-1, j, :),[3,2,1]);
+                end
+                [c,out] = plantCell2vec(funCell, udu, permute(other.C(end-1, j, :),[3,2,1]));
+                other.C(end, j, :) = c;
                 other.J(end, j) = out(1);
-                other.G(end, :, j) = out(2:end);
+                other.G(end, j, :) = out(2:end);
             end
             
-            dJ = other.J(end,:)-base.J(end,:);
-            dG = other.G(end,:,:)-base.G(end,:);
+            dJ = (other.J(end,:)-base.J(end,:))./du;
+            dG = (other.G(end,:,:)-base.G(end,:,:))./du;
+            
         end
+        
     end
 end
