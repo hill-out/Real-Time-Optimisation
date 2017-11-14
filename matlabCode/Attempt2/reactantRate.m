@@ -19,7 +19,7 @@ function r = reactantRate(c, k, s, o)
 % r - rate of con/gen     [nx1]  (mol/L min)  [r_A; r_B; r_C; ...r_X];
 
 %% missing inputs
-if nargin < 4 || isempty(rO) %no reaction order
+if nargin < 4 || isempty(o) %no reaction order
     o = -s;
     o(o<0) = 0; % assume elementary
 end
@@ -27,16 +27,9 @@ end
 %% calculate the rate
 % using the equations:
 % 
-% $$ r_{1A} = k1 \times s_{1A} \times \prod_{i=A}^{X} c_{i}^{o_{1i}} $$
-% 
-% $$ r_{1B} = r_{1A} \times \frac{s_{1B}}{s_{1A}} $$
-% 
-% $$ r_{A} = \sum_{i=1}^{n} r_{iA} $$
+% $$ r_{A} = \sum_{i=1}^{n} s_{iA} \times r_{i} $$
 % 
 
-c = repmat(c,1,size(k,2));
-baseM = c.^(o);
-r = (k.*prod(baseM,1))';
-
+r = s*reactionRate(c,k,s,o)';
 
 end

@@ -15,7 +15,7 @@ function dc = CSTRode(c, c_in, q_in, k, V, s)
 % $$\frac{dc}{dt} = \frac{q_{in}}{V}\times(c_{in}-c) + r$$
 % 
 
-r = rate(c, k, s);
+r = reactantRate(c, k, s);
 
 dc = (q_in/V).*c_in-(sum(q_in)/V).*(c)+r;
 

@@ -90,7 +90,7 @@ end
 % Convex approximation parameters
 convPara = convexApprox(model_funArray, [1, 1], [50, 50],...
     [2,1,1], model_opt, model_funOpt, model_reactOrder, model_kVal, model_cIn, model_V);
-convPara = [-0.8305,-0.9121,0.08,0.0051,0.0126,0,-0.0648,0.0857];
+%convPara = [-0.8305,-0.9121,0.08,0.0051,0.0126,0,-0.0648,0.0857];
 % Set-up MA opt
 conv_phi = @(u)(model_funOpt(1)+convPara([1,2])*(u-model_opt)'+...
     0.5*(u-model_opt)*(convPara(3)*eye(2))*(u-model_opt)');

@@ -207,9 +207,10 @@ multiUnitTransRTO(m.conv, p.dynFun, 0.1, m.optFull, p.c0, 30);
         base.J = plant0(1);
         base.G = repmat(plant0(2:end),1,1,numel(u));
         
-        other.C = zeros(0, 2, 4);
-        other.J = zeros(0, 2);
-        other.G = zeros(0, 2, numel(plant0(2:end)));
+        other.C = zeros(0,4);
+        other.J = zeros(0, );
+        other.G = zeros();
+        
         
         function [vec] = convCell2vec(funCell, x)
             % runs a cell of functions "funCell" with variable "x"
