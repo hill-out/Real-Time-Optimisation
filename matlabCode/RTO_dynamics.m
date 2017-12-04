@@ -90,7 +90,7 @@ end
 % Convex approximation parameters
 convPara = convexApprox(model_funArray, [1, 1], [50, 50],...
     [2,1,1], model_opt, model_funOpt, model_reactOrder, model_kVal, model_cIn, model_V);
-%convPara = [-0.8305,-0.9121,0.08,0.0051,0.0126,0,-0.0648,0.0857];
+convPara = [-0.8305,-0.9121,0.08,0.0051,0.0126,0,-0.0648,0.0857];
 % Set-up MA opt
 conv_phi = @(u)(model_funOpt(1)+convPara([1,2])*(u-model_opt)'+...
     0.5*(u-model_opt)*(convPara(3)*eye(2))*(u-model_opt)');
@@ -103,8 +103,12 @@ conv_dG{1} = @(u)(convPara([1,2]+3)');
 conv_dG{2} = @(u)(convPara([1,2]+6)');
 conv_dfunArray = {conv_dphi, conv_dG{:}};
 
+save('dyn.mat')
+
+plant_fun = @(x,u,n,t)(dyn_CSTR(plant_reactOrder, plant_kVal, x, plant_cIn, u, plant_V, n, t));
+
 % Run plant optimisation
-dynamicRTO(conv_funArray,plant_fun,0.5,model_opt,plant_c0,30);
+dynamicRTO(conv_funArray,plant_fun,0.8,model_opt,model_cSolOpt,60);
 
 
 

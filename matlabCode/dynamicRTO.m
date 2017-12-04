@@ -15,16 +15,16 @@ else % incorrect input
     meth = 1;
 end
 
-nTau = 0.01; %number of seconds for the time step in the dynamics CSTR
+nTau = 0.01; %number of minutes for the time step in the dynamics CSTR
 n = tau/nTau; %number of time steps
 
 % Base Case
 delta = 50e-3; %change in the u value
 
 if meth == 1
-    [base, other, gradJ, gradG] = gradMU(plantFun, c0, repmat(c0,2,1), u0, 1000, 100, delta);
+    [base, other, gradJ, gradG] = gradMU(plantFun, c0, repmat(c0,2,1), u0, n, tau, delta);
 elseif meth == 2
-    [base, other, gradJ, gradG] = gradNE(plantFun, c0, repmat(c0,2,1), u0, n, tau, delta);
+    [base, other, gradJ, gradG] = gradNE(plantFun, c0, repmat(c0,2,1), u0, 10, 0.1, delta);
 else
     error('no method')
 end
@@ -79,14 +79,24 @@ while solved == 0 || first == 1
     first = 0;
     
     converged = all(all([(abs((e(j,:) - e(j-1,:))./e(j-1,:)) < 1e-3);(abs((l(:,:,j,:) - l(:,:,j-1))./l(:,:,j-1)) < 1e-3)]));
+    failed = any(u(j,1:2)<1);
     
-    if j*tau > 5000 || converged
+    if j*tau > 500 || converged || failed
         solved = 1;
     else
        j = j + 1;
     end
 end
 
-plot(linspace(0,(j)*tau,length(u)),u)
+t = linspace(0,(j)*tau,length(u));
+tJG = linspace(0,(j)*tau,length(base.J));
+figure
+plot(t,u(1:end,:))
+figure
+plot(tJG,base.J)
+hold on
+plot(tJG,other.J(:,1,1))
+figure
+plot(tJG,base.G)
 
 end
