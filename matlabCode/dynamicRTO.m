@@ -69,8 +69,10 @@ while solved == 0 || first == 1
     newe(2:3) = base.G(end,:) - m(j,2:3);
     newl = [permute(gradJ(end,:,:),[3,2,1]),permute(gradG(end,:,:),[3,2,1])]-permute(mGrad(j,:,:),[2,3,1]);
     
-    e(j,:) = newe.*gain + (1-gain).*e(j-1,:);
-    l(:,:,j) = newl.*gain + (1-gain).*l(:,:,j-1);
+    e(j,1) = newe(1).*gain*0.1 + (1-gain*0.1).*e(j-1,1);
+    e(j,2:3) = newe(2:3).*gain + (1-gain).*e(j-1,2:3);
+    l(:,1,j) = newl(:,1).*gain*0.1 + (1-gain*0.1).*l(:,1,j-1);
+    l(:,2:3,j) = newl(:,2:3).*gain + (1-gain).*l(:,2:3,j-1);
     
     modifiedFun{1} = @(v)(modelFun{1}(v)+e(j,1)+(v-u(j,:))*(l(:,1,j)));
     modifiedFun{2} = @(v)(modelFun{2}(v)+e(j,2)+(v-u(j,:))*(l(:,2,j)));
