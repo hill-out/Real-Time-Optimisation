@@ -37,7 +37,7 @@ plant.cons = @(~, c)(consFun([], c, plant));
 
 %% 5. Run RTO
 
-runMU(model, plant, 0.02, 1)
+runMU(model, plant, 0.06, 1)
 
 
 

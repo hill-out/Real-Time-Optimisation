@@ -26,6 +26,6 @@ for i = 1:numel(x0)
     f(:, i) = fun(x);
 end
 
-g = (f - repmat(reshape(f0,[],1),1,nF))./dx;
+g = (f - repmat(reshape(f0,1,nF))./dx;
 
 end

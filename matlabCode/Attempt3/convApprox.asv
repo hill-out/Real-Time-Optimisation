@@ -27,7 +27,7 @@ du2mesh = u2mesh - stru.uOpt(2);
 
 % for cost
 costPara = fminsearch(@(x)lsr(x, 2, costmesh, stru.costOpt),[0,0,0]);
-costPara = [-0.8305, -0.9121, 0.08];
+
 cost = @(x, ~)(convModel(costPara, x, stru.uOpt, stru.costOpt));
 
 % for cons
