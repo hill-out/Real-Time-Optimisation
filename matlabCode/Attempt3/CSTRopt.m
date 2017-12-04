@@ -1,4 +1,4 @@
-function [xOpt, cOpt, costOpt, consOpt] = CSTRopt(stru, x0)
+function [xOpt, cOpt, costOpt, consOpt] = CSTRopt(cost, cons, stru, x0)
 % -------------------------------------------------------------------------
 % finds the optimum point (minimum cost) subject to cons
 %
@@ -23,16 +23,16 @@ uMax = [50, 50];
 
 
 
-[xOpt] = fmincon(@(x)(stru.cost(x, CSTRste(x, stru))), x0, [], [], [], [], uMin, uMax, @(x)cons(x), options);
+[xOpt] = fmincon(@(x)(cost(x, CSTRste(x, stru))), x0, [], [], [], [], uMin, uMax, @(x)consFun(x), options);
 
 if nargout > 2
     cOpt = CSTRste(xOpt, stru);
-    costOpt = stru.cost(xOpt,cOpt);
-    consOpt = stru.cons([],cOpt);
+    costOpt = cost(xOpt,cOpt);
+    consOpt = cons([],cOpt);
 end
 
-    function [c,ceq] = cons(x)
-        c = stru.cons([],CSTRste(x,stru));
+    function [c,ceq] = consFun(x)
+        c = cons(x,CSTRste(x,stru));
         ceq = [];
     end
 end

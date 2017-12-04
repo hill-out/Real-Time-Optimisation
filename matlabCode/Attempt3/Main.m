@@ -28,7 +28,7 @@ plant.cons = @(~, c)(consFun([], c, plant));
 
 %% 3. Find opt of model
 
-[model.uOpt, model.cOpt, model.costOpt, model.consOpt] = CSTRopt(model,[14,14]);
+[model.uOpt, model.cOpt, model.costOpt, model.consOpt] = CSTRopt(model.cost,model.cons,model,[14,14]);
 
 
 %% 4. Define Convex Approximation
@@ -36,3 +36,8 @@ plant.cons = @(~, c)(consFun([], c, plant));
 [model.convCost, model.convCons] = convApprox(model);
 
 %$ 5. Run RTO
+
+runMU(model, plant, 0.2, 30)
+
+
+
