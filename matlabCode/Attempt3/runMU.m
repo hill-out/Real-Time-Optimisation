@@ -14,9 +14,10 @@ function [model, plant] = runMU(model, plant, gain, tau)
 
 %% inital iteration (plant at steady state, modelOpt conditions)
 u0 = model.uOpt;
-[mC, mCost, mCons] = CSTRste(u0, model);
+mCost = model.convCost(u0);
+mCons = model.convCons(u0);
 [pC, pCost, pCons] = CSTRste(u0, plant);
-du = 0.01;
+delu = 0.01;
 
 % initialise base unit and offset units
 plant.base = struct('u', u0,...
@@ -26,10 +27,10 @@ plant.base = struct('u', u0,...
     'cons', pCons);
 
 u0_1 = u0;
-u0_1(1) = u0_1(1) + du;
+u0_1(1) = u0_1(1) + delu;
 
 u0_2 = u0;
-u0_2(2) = u0_2(2) + du;
+u0_2(2) = u0_2(2) + delu;
 
 plant.offset = struct('u', {u0_1, u0_2},...
     't', 0,...
@@ -45,20 +46,26 @@ pCost = plant.base.cost(end);
 epiCost = pCost - mCost;
 
 % calculate zeroth order midifier (cons)
-pCons = plant.base.cons(end);
+pCons = plant.base.cons(:,end);
 
-epiCons = pCons - mCons;
+epiCons = pCons' - mCons;
 
 % calculate first order midifier
-mCostGrad = gradFD(@(x)(model.cost(x, CSTRste(x, model))), 1,  u0, du);
-mConsGrad = gradFD(@(x)(model.cons(x, CSTRste(x, model))), 2,  u0, du);
+mCostGrad = gradFD(@(x)(model.convCost(x)), 1,  u0, delu);
+mConsGrad = gradFD(@(x)(model.convCons(x)), 2,  u0, delu);
 
-lamCost = (pCostGrad - mCostGrad)/model.costOpt;
+lamCost = (pCostGrad - mCostGrad);
 lamCons = pConsGrad - mConsGrad;
 
+%apply gain
+epiCost = (gain)*epiCost;
+epiCons = (gain)*epiCons;
+lamCost = (gain)*lamCost;
+lamCons = (gain)*lamCons;
+
 % modify model
-modified.cost = @(u,c)(model.cost(u,c) + epiCost + lamCost*u');
-modified.cons = @(u,c)(model.cons(u,c) + epiCons + lamCons*u');
+modified.cost = @(u)(model.convCost(u) + epiCost + (u-u0)*lamCost');
+modified.cons = @(u)(model.convCons(u) + epiCons + (u-u0)*lamCons);
 
 RTO.i = 0;
 RTO.u = reshape(u0,1,[]);
@@ -72,44 +79,48 @@ unsolved = 1;
 
 while unsolved
     
-    u0 = CSTRopt(modified.cost, modified.cons, model, RTO.u(end,:));
-    [mC, mCost, mCons] = CSTRste(u0, model);
-    [pC, pCost, pCons] = CSTRste(u0, plant);
+    u0 = CSTRopt(@(x,y)(modified.cost(x)), @(x,y)(modified.cons(x)), model, RTO.u(end,:));
+    mCost = model.convCost(u0);
+    mCons = model.convCons(u0);
+    
     
     % run plant
     u0_1 = u0;
-    u0_1(1) = u0_1(1) + du;
-
+    u0_1(1) = u0_1(1) + delu;
+    
     u0_2 = u0;
-    u0_2(2) = u0_2(2) + du;
+    u0_2(2) = u0_2(2) + delu;
     
     plant.base.u (end+1,:) = u0;
     plant.offset(1).u(end+1,:) = u0_1;
     plant.offset(2).u(end+1,:) = u0_2;
     
     [pCostGrad, pConsGrad] = gradMU;
+    pCost = plant.base.cost(end);
+    pCons = plant.base.cons(:,end);
     
     % calculate zeroth order midifier
     epiCost = pCost - mCost;
-    epiCons = pCons - mCons;
+    epiCons = pCons' - mCons;
     
-    % calculate first order midifier    
-    mCostGrad = gradFD(@(x)(model.cost(x, CSTRste(x, model))), 1,  u0, du);
-    mConsGrad = gradFD(@(x)(model.cons(x, CSTRste(x, model))), 2,  u0, du);
+    % calculate first order midifier
+    mCostGrad = gradFD(@(x)(model.convCost(x)), 1,  u0, delu);
+    mConsGrad = gradFD(@(x)(model.convCons(x)), 2,  u0, delu);
     
-    lamCost = (pCostGrad - mCostGrad)/model.costOpt;
+    lamCost = (pCostGrad - mCostGrad);
     lamCons = pConsGrad - mConsGrad;
     
     % apply gain
-    epiCost = RTO.epiCost(end,:)*gain - (1-gain)*epiCost;
-    epiCons = RTO.epiCost(end,:)*gain - (1-gain)*epiCons;
-    lamCost = reshape(RTO.lamCost(end,:),[],2)*gain - (1-gain)*lamCost;
-    lamCons = reshape(RTO.lamCons(end,:),[],2)*gain - (1-gain)*lamCons;
+    epiCost = RTO.epiCost(end,:)*(1-gain) + (gain)*epiCost;
+    epiCons = RTO.epiCons(end,:)*(1-gain) + (gain)*epiCons;
+    lamCost = reshape(RTO.lamCost(end,:),[],2)*(1-gain) + (gain)*lamCost;
+    lamCons = reshape(RTO.lamCons(end,:),[],2)*(1-gain) + (gain)*lamCons;
     
     % modify model
-    modified.cost = @(u,c)(model.cost(u,c) + epiCost + lamCost*u');
-    modified.cons = @(u,c)(model.cons(u,c) + epiCons + lamCons*u');
+    modified.cost = @(u)(model.convCost(u) + epiCost + (u-u0)*lamCost');
+    modified.cons = @(u)(model.convCons(u) + epiCons + (u-u0)*lamCons);
     
+    % save data
     RTO.i(end+1) = RTO.i(end) + 1;
     RTO.u(end+1,:) = reshape(u0,1,[]);
     RTO.epiCost(end+1,:) = reshape(epiCost,1,[]);
@@ -117,8 +128,12 @@ while unsolved
     RTO.lamCost(end+1,:) = reshape(lamCost,1,[]);
     RTO.lamCons(end+1,:) = reshape(lamCons,1,[]);
     
+    if RTO.i(end) == 140
+        unsolved = 1;
+    end
+    %plotConsArea(modified.cons);
+    %pause(2)
 end
-
 
     function [costGrad, consGrad] = gradMU
         % -----------------------------------------------------------------
@@ -152,8 +167,8 @@ end
             plant.offset(nO).cost(end+1:end+nIter) = cost;
             plant.offset(nO).cons(:,end+1:end+nIter) = cons;
             
-            costGrad(nO) = (plant.offset(nO).cost(end) - plant.base.cost(end))./du;
-            consGrad(:,nO) = (plant.offset(nO).cons(:,end) - plant.base.cons(:,end))./du;
+            costGrad(nO) = (plant.offset(nO).cost(end) - plant.base.cost(end))./delu;
+            consGrad(:,nO) = (plant.offset(nO).cons(:,end) - plant.base.cons(:,end))./delu;
         end
         
         

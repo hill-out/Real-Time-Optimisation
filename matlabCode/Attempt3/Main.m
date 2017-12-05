@@ -35,9 +35,9 @@ plant.cons = @(~, c)(consFun([], c, plant));
 
 [model.convCost, model.convCons] = convApprox(model);
 
-%$ 5. Run RTO
+%% 5. Run RTO
 
-runMU(model, plant, 0.2, 30)
+runNE(model, plant, 0.02, 1)
 
 
 

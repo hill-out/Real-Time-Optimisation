@@ -15,9 +15,13 @@ v0 = sum(u);
 options = optimset('Display','off');
 c = fsolve(@massBal,stru.c_in,options);
 
-if nargout > 2
+if nargout > 1
     cost = stru.cost(u, c);
     cons = stru.cons(u, c);
+    if nargout > 3
+        convCost = stru.convCost(u, c);
+        convCost = stru.convCons(u, c);
+    end
 end
 
     function [F] = massBal(c)

@@ -70,7 +70,7 @@ p.dynFunc = {p.dynModel,...
     @(x,c0,t)(nE(CSTRcon(p.dynModel(x,c0,t), p.k),1)),...
     @(x,c0,t)(nE(CSTRcon(p.dynModel(x,c0,t), p.k),2))};
 
-multiUnitTransRTO(m.conv, m.cGrad, p.dynFunc, 0.1, m.optFull, p.c0, 30);
+multiUnitTransRTO(m.conv, m.cGrad, p.dynFunc, 0.2, m.optFull, p.c0, 30);
 
     function [cSol] = CSTRsteady(u, c_in, k)
         % solves the CSTR at steady state
