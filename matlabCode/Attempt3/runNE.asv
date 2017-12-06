@@ -14,25 +14,12 @@ function [model, plant] = runNE(model, plant, gain, tau)
 
 %% inital iteration (plant at steady state, modelOpt conditions)
 u0 = model.uOpt;
-mCost = model.convCost(u0);
-mCons = model.convCons(u0);
+[mC0, mCost, mCons] = CSTRste(u0, model);
 [pC, pCost, pCons] = CSTRste(u0, plant);
 delu = 0.01;
 
 % initialise base unit and offset units
 plant.base = struct('u', u0,...
-    't', 0,...
-    'c', pC,...
-    'cost', pCost,...
-    'cons', pCons);
-
-u0_1 = u0;
-u0_1(1) = u0_1(1) + delu;
-
-u0_2 = u0;
-u0_2(2) = u0_2(2) + delu;
-
-plant.offset = struct('u', {u0_1, u0_2},...
     't', 0,...
     'c', pC,...
     'cost', pCost,...
@@ -46,26 +33,26 @@ epiCost = pCost - mCost;
 % calculate zeroth order midifier (cons)
 pCons = plant.base.cons(:,end);
 
-epiCons = pCons' - mCons;
+epiCons = pCons - mCons;
 
 % calculate first order midifier
-mCostGrad0 = gradFD(@(x)(model.convCost(x)), 1,  u0, delu);
-mConsGrad0 = gradFD(@(x)(model.convCons(x)), 2,  u0, delu);
+mCostGrad0 = gradFD(@(x)(model.cost(x, CSTRste(x, model))), 1,  u0, delu);
+mConsGrad0 = gradFD(@(x)(model.cons(x, CSTRste(x, model))), 2,  u0, delu);
 
 [pCostGrad, pConsGrad] = gradNE;
 
-lamCost = pCostGrad - mCostGrad0;
+lamCost = pCostGrad - mCostGrad0';
 lamCons = pConsGrad - mConsGrad0;
 
 %apply gain
-epiCost = (gain)*epiCost;
-epiCons = (gain)*epiCons;
-lamCost = (gain)*lamCost;
-lamCons = (gain)*lamCons;
+% epiCost = (gain)*epiCost;
+% epiCons = (gain)*epiCons;
+% lamCost = (gain)*lamCost;
+% lamCons = (gain)*lamCons;
 
 % modify model
-modified.cost = @(u)(model.convCost(u) + epiCost + (u-u0)*lamCost');
-modified.cons = @(u)(model.convCons(u) + epiCons + (u-u0)*lamCons);
+modified.cost = @(u)(model.cost(u, CSTRste(u, model)) + epiCost + (u-u0)*lamCost);
+modified.cons = @(u)(model.cons(u, CSTRste(u, model)) + epiCons + ((u-u0)*lamCons)');
 
 RTO.i = 0;
 RTO.u = reshape(u0,1,[]);
@@ -80,45 +67,35 @@ unsolved = 1;
 while unsolved
     
     u0 = CSTRopt(@(x,y)(modified.cost(x)), @(x,y)(modified.cons(x)), model, RTO.u(end,:));
-    mCost = model.convCost(u0);
-    mCons = model.convCons(u0);
-    
+    [~, mCost, mCons] = CSTRste(u0, model);
     
     % run plant
-    u0_1 = u0;
-    u0_1(1) = u0_1(1) + delu;
-    
-    u0_2 = u0;
-    u0_2(2) = u0_2(2) + delu;
-    
     plant.base.u (end+1,:) = u0;
-    plant.offset(1).u(end+1,:) = u0_1;
-    plant.offset(2).u(end+1,:) = u0_2;
     
-    [pCostGrad, pConsGrad] = gradMU;
+    [pCostGrad, pConsGrad] = gradNE;
     pCost = plant.base.cost(end);
     pCons = plant.base.cons(:,end);
     
     % calculate zeroth order midifier
     epiCost = pCost - mCost;
-    epiCons = pCons' - mCons;
+    epiCons = pCons - mCons;
     
     % calculate first order midifier
-    mCostGrad = gradFD(@(x)(model.convCost(x)), 1,  u0, delu);
-    mConsGrad = gradFD(@(x)(model.convCons(x)), 2,  u0, delu);
+    mCostGrad = gradFD(@(x)(model.cost(x, CSTRste(x, model))), 1,  u0, delu);
+    mConsGrad = gradFD(@(x)(model.cons(x, CSTRste(x, model))), 2,  u0, delu);
     
-    lamCost = (pCostGrad - mCostGrad);
+    lamCost = pCostGrad - mCostGrad';
     lamCons = pConsGrad - mConsGrad;
     
     % apply gain
     epiCost = RTO.epiCost(end,:)*(1-gain) + (gain)*epiCost;
-    epiCons = RTO.epiCons(end,:)*(1-gain) + (gain)*epiCons;
-    lamCost = reshape(RTO.lamCost(end,:),[],2)*(1-gain) + (gain)*lamCost;
+    epiCons = reshape(RTO.epiCons(end,:),2,[])*(1-gain) + (gain)*epiCons;
+    lamCost = reshape(RTO.lamCost(end,:),2,[])*(1-gain) + (gain)*lamCost;
     lamCons = reshape(RTO.lamCons(end,:),[],2)*(1-gain) + (gain)*lamCons;
     
     % modify model
-    modified.cost = @(u)(model.convCost(u) + epiCost + (u-u0)*lamCost');
-    modified.cons = @(u)(model.convCons(u) + epiCons + (u-u0)*lamCons);
+    modified.cost = @(u)(model.cost(u, CSTRste(u, model)) + epiCost + (u-u0)*lamCost);
+    modified.cons = @(u)(model.cons(u, CSTRste(u, model)) + epiCons + ((u-u0)*lamCons)');
     
     % save data
     RTO.i(end+1) = RTO.i(end) + 1;
@@ -144,10 +121,21 @@ end
         %
         % -----------------------------------------------------------------
         
+        % run the plant
+        [~, t, c, cost, cons] = ...
+            CSTRdyn(plant.base.u(end,:), plant.base.c(:,end), plant, tau);
+        
+        nIter = numel(t);
+        
+        plant.base.t(end+1:end+nIter) = plant.base.t(end) + t;
+        plant.base.c(:,end+1:end+nIter) = c;
+        plant.base.cost(end+1:end+nIter) = cost;
+        plant.base.cons(:,end+1:end+nIter) = cons;
+        
         % first order gradients of steady state model (du)
         [C0, cost0, cons0] = CSTRste(u0,model);
         
-        du = repmat(u0, 2, 1) + 0.01*eye(2); %modified values of u
+        du = repmat(u0, 2, 1) + 0.001*eye(2); %modified values of u
         Cdu = zeros(2,1,4); %values of c at du
         costdu0 = zeros(2,1); %values of cost at du
         consdu0 = zeros(2,1,2); %values of cons at du
@@ -155,9 +143,9 @@ end
         for du_i = 1:2
             [Cdu(du_i,1,:), costdu0(du_i), consdu0(du_i,1,:)] = CSTRste(du(du_i,:),model);
         end
-        dcostdu0 = (costdu0 - repmat(cost0,2,1))./0.01;
-        dconsdu0 = (consdu0 - repmat(permute(cons0,[3,2,1]),2,1))./0.01;
-        dHdu = (Cdu - repmat(reshape(C0,1,1,4),2,1))./0.01;
+        dcostdu0 = (costdu0 - repmat(cost0,2,1))./0.001;
+        dconsdu0 = (consdu0 - repmat(permute(cons0,[3,2,1]),2,1))./0.001;
+        dHdu = (Cdu - repmat(reshape(C0,1,1,4),2,1))./0.001;
         
         % first order gradients of steady state model (dp)
         p = [model.k(1), model.k(2), model.c_in(1)];
@@ -175,7 +163,7 @@ end
             
         end
         
-        dHdp = (Cdp - repmat(reshape(C0,1,1,4),1,3))/0.01;
+        dHdp = (Cdp - repmat(reshape(C0,1,1,4),1,3))/0.001;
         
         % second order gradients for cost (dudp)
         dcostdudp = zeros(2,3);
@@ -197,7 +185,7 @@ end
             dcostdudp(:,dp_i) = (costdu - repmat(cost0,2,1))/0.01;
         end
         
-        ddcostdpdu = (dcostdudp - repmat(dcostdu0,1,3))./0.01;
+        ddcostdudp = (dcostdudp - repmat(dcostdu0,1,3))./0.01;
         
         % second order gradients for cost (dudu)
         eye3 = repmat(eye(2),1,1,2);
@@ -240,7 +228,7 @@ end
             dconsdudp(:,dp_i,:) = (consdu - repmat(permute(cons0,[3,2,1]),2,1))/0.01;
         end
         
-        ddconsdpdu = (dconsdudp - repmat(dconsdu0,1,3))./0.01;
+        ddconsdudp = (dconsdudp - repmat(dconsdu0,1,3))./0.01;
         
         % second order gradients for cost (dudu)
         consdudu = zeros(2,1,2); %values of cost at du
@@ -259,8 +247,20 @@ end
         
         ddconsdudu = (dconsdudu - repmat(dconsdu0,1,2))./0.01;
         
-        gammaCost = mCostGrad0 + ddcostdudp*
+        invdHdp = pinv(permute(dHdp,[3,2,1]));
         
+        dyp = plant.base.c(:,end) - mC0;
+        duOpt = u0 - model.uOpt;
         
+        costGrad = mCostGrad0' + ddcostdudp*invdHdp*dyp + ...
+            (ddcostdudu - ddcostdudp*invdHdp*permute(dHdu,[3,1,2]))*duOpt';
+        
+        consGrad = zeros(2);
+        
+        consGrad(1,:) = mConsGrad0(1,:)' + ddconsdudp(:,:,1)*invdHdp*dyp + ...
+            (ddconsdudu(:,:,1) - ddconsdudp(:,:,1)*invdHdp*permute(dHdu,[3,1,2]))*duOpt';
+        consGrad(2,:) = mConsGrad0(2,:)' + ddconsdudp(:,:,2)*invdHdp*dyp + ...
+            (ddconsdudu(:,:,2) - ddconsdudp(:,:,2)*invdHdp*permute(dHdu,[3,1,2]))*duOpt';
+
     end
 end
