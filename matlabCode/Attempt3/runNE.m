@@ -42,7 +42,11 @@ epiCons = pCons - mCons;
 mCostGrad0 = gradFD(@(x)(model.cost(x, CSTRste(x, model))), 1,  u0, delu);
 mConsGrad0 = gradFD(@(x)(model.cons(x, CSTRste(x, model))), 2,  u0, delu);
 
-[pCostGrad, pConsGrad] = gradNE_symb;
+[pCostGrad, pConsGrad] = gradNE;
+
+pCostGrad = gradFD(@(x)(plant.cost(x, CSTRste(x, plant))), 1,  u0, delu)';
+pConsGrad = gradFD(@(x)(plant.cons(x, CSTRste(x, plant))), 2,  u0, delu);
+   
 
 lamCost = pCostGrad - mCostGrad0';
 lamCons = pConsGrad - mConsGrad0;
@@ -75,7 +79,11 @@ while unsolved
     % run plant
     plant.base.u (end+1,:) = u0;
     
-    [pCostGrad, pConsGrad] = gradNE_symb;
+    [pCostGrad, pConsGrad] = gradNE;
+    pCostGrad = gradFD(@(x)(plant.cost(x, CSTRste(x, plant))), 1,  u0, delu)';
+    pConsGrad = gradFD(@(x)(plant.cons(x, CSTRste(x, plant))), 2,  u0, delu);
+   
+    
     pCost = plant.base.cost(end);
     pCons = plant.base.cons(:,end);
     
@@ -108,7 +116,7 @@ while unsolved
     RTO.lamCost(end+1,:) = reshape(lamCost,1,[]);
     RTO.lamCons(end+1,:) = reshape(lamCons,1,[]);
     
-    if RTO.i(end) == 15
+    if RTO.i(end) == 20
         unsolved = 1;
     end
     %plotConsArea(modified.cons);
@@ -317,6 +325,7 @@ end
             (ddconsdudu(:,:,1) - ddconsdudp(:,:,1)*invdHdp*permute(dHdu,[3,1,2]))*duOpt';
         consGrad(2,:) = mConsGrad0(2,:)' + ddconsdudp(:,:,2)*invdHdp*dyp + ...
             (ddconsdudu(:,:,2) - ddconsdudp(:,:,2)*invdHdp*permute(dHdu,[3,1,2]))*duOpt';
-
+        
+     
     end
 end

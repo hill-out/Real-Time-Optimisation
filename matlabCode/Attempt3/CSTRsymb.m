@@ -3,7 +3,7 @@ function [out] = CSTRsymb(in)
 
 syms k1 k2 u1 u2 V cain cbin w dH1 dH2 Qmax Dmax
 u = [u1; u2];
-theta = [k1;k2];
+theta = [k1;k2;cain];
  
 a = 2*k1*k2*V^2;
 b = V*(2*k2+k1)*(u1+u2);
