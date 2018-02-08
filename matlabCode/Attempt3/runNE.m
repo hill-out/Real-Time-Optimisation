@@ -58,8 +58,8 @@ lamCons = pConsGrad - mConsGrad0;
 % lamCons = (gain)*lamCons;
 
 % modify model
-modified.cost = @(u)(model.cost(u, CSTRste(u, model)) + epiCost + (u-u0)*lamCost);
-modified.cons = @(u)(model.cons(u, CSTRste(u, model)) + epiCons + ((u-u0)*lamCons)');
+modified.cost = @(u)(model.convCost(u, CSTRste(u, model)) + epiCost + (u-u0)*lamCost);
+modified.cons = @(u)(model.convCons(u, CSTRste(u, model))' + epiCons + ((u-u0)*lamCons)');
 
 RTO.i = 0;
 RTO.u = reshape(u0,1,[]);
@@ -105,8 +105,8 @@ while unsolved
     lamCons = reshape(RTO.lamCons(end,:),[],2)*(1-gain) + (gain)*lamCons;
     
     % modify model
-    modified.cost = @(u)(model.cost(u, CSTRste(u, model)) + epiCost + (u-u0)*lamCost);
-    modified.cons = @(u)(model.cons(u, CSTRste(u, model)) + epiCons + ((u-u0)*lamCons)');
+    modified.cost = @(u)(model.convCost(u, CSTRste(u, model)) + epiCost + (u-u0)*lamCost);
+    modified.cons = @(u)(model.convCons(u, CSTRste(u, model))' + epiCons + ((u-u0)*lamCons)');
     
     % save data
     RTO.i(end+1) = RTO.i(end) + 1;
