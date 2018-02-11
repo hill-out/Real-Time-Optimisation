@@ -2,8 +2,8 @@
 % Runs the RTO of a closed loop plant with an open loop model
 
 % 1. load convex variables
-[var_phi, var_g1, var_g2] = convApprox;
-%load('convVar.mat')
+%[var_phi, var_g1, var_g2] = convApprox;
+load('convVar.mat')
 
 var_g = [var_g1;var_g2];
 

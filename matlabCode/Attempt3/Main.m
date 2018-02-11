@@ -37,7 +37,7 @@ plant.cons = @(~, c)(consFun([], c, plant));
 
 %% 5. Run RTO
 
-runNE(model, plant, 0.3, 15)
+runNE(model, plant, 0.5, 60)
 
 
 
