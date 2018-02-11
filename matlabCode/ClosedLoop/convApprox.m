@@ -8,7 +8,7 @@ function [var_phi, var_g1, var_g2] = convApprox
 % ----------------------------------------------
 
 %% set up range to make approximation
-uRange = {linspace(2,10,11),linspace(4,22,11),linspace(78,92,11)};
+uRange = {linspace(2,10,11),linspace(8.5,22,11),linspace(78,92,11)};
 
 %% find optimum point of model
 optionOpt = optimoptions('fmincon','Display','off');
