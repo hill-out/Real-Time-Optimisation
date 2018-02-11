@@ -8,7 +8,7 @@ function [var_phi, var_g1, var_g2] = convApprox
 % ----------------------------------------------
 
 %% set up range to make approximation
-uRange = {linspace(2,10,11),linspace(4,22,11),linspace(78,92,11)};
+uRange = {linspace(2,6,21),linspace(4,15,21),linspace(70,100,11)};
 
 %% find optimum point of model
 optionOpt = optimoptions('fmincon','Display','off');
@@ -34,13 +34,15 @@ size_y = size(y,1);
 [var_g1] = fminsearch(@(x)(leastSquare(x,g_opt(1),reshape(g(1,:),[1,nU]))),[1,1,1,1]);
 [var_g2] = fminsearch(@(x)(leastSquare(x,g_opt(2),reshape(g(2,:),[1,nU]))),[1,1,1,1]);
 
-% [var_phi] = fminsearch(@(x)(leastSquare(x,phi_opt,phi)),[var_phi(1:3),0,0,var_phi(4)]);
-% [var_g1] = fminsearch(@(x)(leastSquare(x,g_opt(1),reshape(g(1,:),[1,nU]))),[var_g1(1:3),0,0,var_g1(4)]);
-% [var_g2] = fminsearch(@(x)(leastSquare(x,g_opt(2),reshape(g(2,:),[1,nU]))),[var_g2(1:3),0,0,var_g2(4)]);
+[var_phi] = fminsearch(@(x)(leastSquare(x,phi_opt,phi)),[var_phi(1:3),0,var_phi(4)]);
+[var_g1] = fminsearch(@(x)(leastSquare(x,g_opt(1),reshape(g(1,:),[1,nU]))),[var_g1(1:3),0,var_g1(4)]);
+[var_g2] = fminsearch(@(x)(leastSquare(x,g_opt(2),reshape(g(2,:),[1,nU]))),[var_g2(1:3),0,var_g2(4)]);
 
-var_phi = [phi_opt,var_phi(1:3),0,0,var_phi(4),y_opt];
-var_g1 = [g_opt(1),var_g1(1:3),0,0,var_g1(4),y_opt];
-var_g2 = [g_opt(2),var_g2(1:3),0,0,var_g2(4),y_opt];
+
+
+var_phi = [phi_opt,var_phi(1:3),var_phi(4),var_phi(4),var_phi(5),y_opt];
+var_g1 = [g_opt(1),var_g1(1:3),var_g1(4),var_g1(4),var_g1(5),y_opt];
+var_g2 = [g_opt(2),var_g2(1:3),var_g2(4),var_g2(4),var_g2(5),y_opt];
 
 
 
@@ -62,6 +64,13 @@ var_g2 = [g_opt(2),var_g2(1:3),0,0,var_g2(4),y_opt];
             if any(eig(q) < 0)
                 q = q*0;
             end
+        elseif numel(q) == sum(1:numel(a))
+            indx = symdec(numel(a),0);
+            Q = zeros(numel(a));
+            for i = 1:numel(q)
+                Q(indx==i) = q(i);
+            end
+            q=Q;
         else
             q(q<0) = 0;
         end

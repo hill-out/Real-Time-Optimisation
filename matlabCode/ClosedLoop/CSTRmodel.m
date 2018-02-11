@@ -14,11 +14,11 @@ end
 F_Ain = u(1);
 F_Bin = u(2);
 T     = u(3);
-E = [8100, 12300];
+E = [8100, 12500];
 M = 2105; %kg
 F = F_Ain + F_Bin; %kg/s
-k1 = 2.189e8*exp(-E(1)/(T+273.15)); %1/s
-k2 = 4.310e13*exp(-E(2)/(T+273.15)); %1/s
+k1 = 2.189*1e8*exp(-E(1)/(T+273.15)); %1/s
+k2 = 4.310*1e13*exp(-E(2)/(T+273.15)); %1/s
 
 %% mass balances
 optionX = optimoptions('fsolve','Display','off');
