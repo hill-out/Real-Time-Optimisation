@@ -10,11 +10,8 @@ function [convVal] = convCalc(x,y)
 % convVal   Convex parameters [1 x 7]
 % -------------------------------------------------------------------------
 
-nx = size(x,1);
-ny = size(y,1);
-m = size(y,2);
-
-convVal = fminsearch(@lsr, [1,1,1,1,1,1]);
+options = optimset('Display','final','MaxFunEvals',5000,'MaxIter',5000);
+convVal = fminsearch(@lsr, [-930,1400,86,15000,-400,0.048], options);
 
     function [square] = lsr(v)
         f = convFun(v, x);
@@ -23,8 +20,4 @@ convVal = fminsearch(@lsr, [1,1,1,1,1,1]);
             square = sum(square);
         end
     end
-
-
-
-
 end
