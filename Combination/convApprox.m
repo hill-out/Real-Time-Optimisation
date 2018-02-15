@@ -2,7 +2,7 @@
 
 FArange = linspace(2,10,11);
 FBrange = linspace(4,15,11);
-Trange = linspace(78,92,11);
+Trange = linspace(78,92,3);
 [FA, FB, T] = ndgrid(FArange, FBrange, Trange);
 
 xGuess = zeros(1,6);
@@ -28,12 +28,19 @@ g1 = X(:,1) - 0.09;
 g2 = X(:,6) - 0.6;
 
 % min
-phi_opt = fminsearch(@(u)(phiFun(u,CSTRmodel(u))),[3,6,84]);
+[u_opt,phi_opt] = fmincon(@(u)(phiFun(u,CSTRmodel(u))),[3,6,84]);
+X_opt = CSTRmodel(u_opt);
+y_opt(1) = X_opt(1);
+y_opt(2) = u_opt(2);
 
 % convPara
-convPhi = convCalc(y',phi);
+convPhi = convCalc(y',phi,y_opt',phi_opt);
+convG1 = convCalc(y(y(:,1)<0.2,:)',g1(y(:,1)<0.2,:));
+convG2 = convCalc(y(y(:,1)<0.2,:)',g2(y(:,1)<0.2,:));
 
 
 
 %plot
-plotConv(y,phi,convPhi)
+plotConv(y,phi,[y_opt,convPhi],y_opt)
+plotConv(y,g1,convG1)
+plotConv(y,g2,convG2)

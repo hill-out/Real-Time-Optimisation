@@ -14,14 +14,15 @@ function [convVal] = convCalc(x,y,x_opt,y_opt,a)
 % -------------------------------------------------------------------------
 
 if nargin < 5
-    a = [1, 1, 1, 0, 1];
+    a = [1, 1, 1, 1, 0, 1];
 end
 
 options = optimset('Display','final','MaxFunEvals',5000,'MaxIter',5000);
 convVal = fminsearch(@lsr, a, options);
 
     function [square] = lsr(v)
-        f = convFun([y_opt, v], (x-x_opt));
+        
+        f = convFun(v, x);
         square = (y - f).^2;
         while numel(square)>1
             square = sum(square);
