@@ -39,11 +39,11 @@ dF(5) = 0     - F*X(5)          + 2*M*R2           ; %E
 dF(6) = 0     - F*X(6)                   + 1.5*M*R3; %G
 
 % T controller
-dT_R = -Kp2*dF(1)/F;
+dT_R = -Kp2*dF(1)/M;
 
 % output
 dy(1:3) = [dF_A, dF_B, dT_R];
-dy(4:end) = dF/F;
+dy(4:end) = dF/M;
 
 end
 
