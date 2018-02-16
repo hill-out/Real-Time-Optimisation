@@ -1,6 +1,6 @@
 function plotConv(x,y,c,o)
 
-f = convFun(c,(x-o)');
+f = convFun(c,bsxfun(@minus,x,o)');
 figure
 hold on
 scatter3(x(:,1),x(:,2),y)

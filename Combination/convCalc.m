@@ -21,7 +21,7 @@ options = optimset('Display','final','MaxFunEvals',5000,'MaxIter',5000);
 convVal = fminsearch(@lsr, a, options);
 
     function [square] = lsr(v)
-        f = convFun([y_opt, v], (x-x_opt));
+        f = convFun([y_opt, v], bsxfun(@minus,x,x_opt));
         square = (y - f).^2;
         while numel(square)>1
             square = sum(square);
