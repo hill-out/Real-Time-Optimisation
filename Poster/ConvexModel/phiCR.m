@@ -1,4 +1,4 @@
-function [phi] = phiCR(r)
+function [phi, dphi] = phiCR(r)
 % approximates phi from r
 % -----------------------
 % r         Setpoints
@@ -15,5 +15,7 @@ convPara = [-328.976366706007,...
 
 rShift = bsxfun(@minus, r, [0.0899999997322743,12.7813268918873]');
 phi = convCalc(convPara, rShift);
+dphi = convdCalc(convPara, rShift);
+
 
 end
