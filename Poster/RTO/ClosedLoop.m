@@ -7,9 +7,10 @@ clear
 optionu = optimoptions('fmincon','Display','off');
 xGuess = [0.09, 0.36, 0.1, 0.25, 0.1, 0.1];
 
-[up_opt] = fmincon(@(x)phiFun(plantController(x)',CSTRplant(plantController(x)',xGuess)),...
-    [0.09, 12],[],[],[],[],[0,0],[1,50],...
-    @(x)conFun(plantController(x)',CSTRplant(plantController(x)',xGuess)),optionu);
+[rp_opt] = [0.119945460747649,6.03381930702352];
+% fmincon(@(x)phiFun(plantController(x)',CSTRplant(plantController(x)',xGuess)),...
+%     [0.09, 12],[],[],[],[],[0,0],[1,50],...
+%     @(x)conFun(plantController(x)',CSTRplant(plantController(x)',xGuess)),optionu);
 
 
 % Run model 0
