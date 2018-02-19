@@ -1,7 +1,7 @@
 % Transient
 addpath('../ConvexModel/')
 clear
-close all
+%close all
 
 % Run model 0
 optionu = optimoptions('fmincon','Display','off');
@@ -18,7 +18,7 @@ xGuess = [0.09, 0.36, 0.1, 0.25, 0.1, 0.1];
 [Xp0] = CSTRplant(u0_opt, xGuess);
 
 % Run plant for tau
-tau = 4000;
+tau = 30;
 [t,Xp] = ode15s(@(t,y)CSTRode(t,y), [0:0.01:tau],[u0_opt, Xp0]);
 base.t = t-t(end);
 base.Xp = Xp(:,4:end);
@@ -32,16 +32,16 @@ du = diag([0.01, 0.01, 0.1]);
 for i = 1:3
     u = u0_opt + du(i,:);
     [c,a] = ode15s(@(t,y)CSTRode(t,y), [0:0.01:tau],[u, Xp0]);
-        Xp2(i,:) = a(end,:);
-        con12 = conFun(u, a(end,4:end));
-        
-        base.dphip(i) = (phiFun(u, a(end,4:end)) - base.phip(end))/du(i,i);
-        base.dconp(i) = (con12(1) - base.conp(end,1))/du(i,i);
-        base.dconp(i+3) = (con12(2) - base.conp(end,2))/du(i,i);
+    Xp2(i,:) = a(end,:);
+    con12 = conFun(u, a(end,4:end));
+    
+    base.dphip(i) = (phiFun(u, a(end,4:end)) - base.phip(end))/du(i,i);
+    base.dconp(i) = (con12(1) - base.conp(end,1))/du(i,i);
+    base.dconp(i+3) = (con12(2) - base.conp(end,2))/du(i,i);
 end
 
 % Get modifiers
-K = 0.6;
+K = 0.1;
 m0phi = K*(base.phip(end) - phi0_opt);
 m0con = K*(base.conp(end,:) - con0_opt);
 
@@ -105,12 +105,12 @@ while unsolved
     
     
     k = k + 1;
-    if k > 20
+    if k > 6
         unsolved = 0;
     end
 end
 
-plot(ui_opt(:,1))
+plot(base.t,base.phip)
 
 
 
