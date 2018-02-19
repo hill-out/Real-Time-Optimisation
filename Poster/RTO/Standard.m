@@ -3,10 +3,17 @@ addpath('../ConvexModel/')
 clear
 %close all
 
-% Run model 0
+% True optimum
 optionu = optimoptions('fmincon','Display','off');
+xGuess = [0.09, 0.36, 0.1, 0.25, 0.1, 0.1];
+
+[up_opt] = fmincon(@(x)phiFun(x,CSTRplant(x,xGuess)),[4, 12, 90],[],[],[],[],...
+    [0,0,70],[20,50,120],@(x)conFun(x,CSTRplant(x,xGuess)),optionu);
+
+% Run model 0
 [u0_opt] = fmincon(@(x)phiCU(x'),[4, 12, 90],[],[],[],[],...
     [0,0,70],[20,50,120],@(x)deal([g1CU(x'),g2CU(x')],[]),optionu);
+
 
 % Get phi and g
 [phi0_opt, dphi0_opt] =  phiCU(u0_opt');
@@ -14,14 +21,13 @@ optionu = optimoptions('fmincon','Display','off');
 [con0_opt(2), dcon0_opt(4:6)] = g2CU(u0_opt');
 
 % Run plant @u0_opt
-xGuess = [0.09, 0.36, 0.1, 0.25, 0.1, 0.1];
 [Xp] = CSTRplant(u0_opt, xGuess);
 
 % Get phi and g
 phip = phiFun(u0_opt,Xp);
 conp = conFun(u0_opt,Xp);
 
-du = diag([0.001, 0.001, 0.01]);
+du = diag([0.01, 0.01, 0.1]);
 
 for i = 1:3
     u = u0_opt + du(i,:);
@@ -60,10 +66,6 @@ while unsolved
     [coni_opt(k,1), dconi_opt(k,1:3)] = g1CU(ui_opt(k,:)');
     [coni_opt(k,2), dconi_opt(k,4:6)] = g2CU(ui_opt(k,:)');
     
-    dphii_opt(k,:) = dphii_opt(k,:) + m1phi;
-    dconi_opt(k,1:3) = dconi_opt(k,1:3) + m1con(1:3);
-    dconi_opt(k,4:6) = dconi_opt(k,4:6) + m1con(4:6);
-    
     % Run plant @u0_opt
     [Xp(k,:)] = CSTRplant(ui_opt(k,:), xGuess);
     
@@ -92,14 +94,9 @@ while unsolved
     g2Mod = @(u)(g2CU(u) + m0con(2) + m1con(4:6)*(u-ui_opt(k,:)'));
     
     k = k + 1;
-    if k > 1000
+    if k > 10
         unsolved = 0;
     end
 end
 
 plot(ui_opt(:,1))
-
-
-
-
-

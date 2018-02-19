@@ -1,4 +1,4 @@
-function [g1] = g1CR(r)
+function [g1, dg1] = g1CR(r)
 % approximates phi from r
 % -----------------------
 % r         Setpoints
@@ -15,5 +15,6 @@ convPara = [-2.67725716596168e-10,...
 
 rShift = bsxfun(@minus, r, [0.0899999997322743,12.7813268918873]');
 g1 = convCalc(convPara, rShift);
+dg1 = convdCalc(convPara, rShift);
 
 end

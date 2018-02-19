@@ -1,7 +1,7 @@
 % Transient
 addpath('../ConvexModel/')
 clear
-close all
+%close all
 
 % Run model 0
 optionu = optimoptions('fmincon','Display','off');
@@ -18,34 +18,35 @@ xGuess = [0.09, 0.36, 0.1, 0.25, 0.1, 0.1];
 [Xp0] = CSTRplant(u0_opt, xGuess);
 
 % Run plant for tau
-tau = 50;
-[t,Xp] = ode45(@(t,y)CSTRode(t,y), [0 tau],[u0_opt, Xp0]);
+tau = 1000;
+[t,Xp] = ode15s(@(t,y)CSTRode(t,y), [0:0.01:tau],[u0_opt, Xp0]);
 base.t = t-t(end);
-base.Xp = Xp;
+base.Xp = Xp(:,4:end);
 
 % Get phi and g
 base.phip = phiFun(u0_opt,base.Xp);
 base.conp = conFun(u0_opt,base.Xp);
 
-du = diag([0.001, 0.001, 0.01]);
+du = diag([0.01, 0.01, 0.1]);
 
 for i = 1:3
     u = u0_opt + du(i,:);
-    [~,a] = ode45(@(t,y)CSTRode(t,y), [0 tau],[u, Xp0]);
+    [c,a] = ode15s(@(t,y)CSTRode(t,y), [0:0.01:tau],[u, Xp0]);
     Xp2(i,:) = a(end,:);
-    dphip = (phiFun(u, Xp2(i,4:end)) - base.phip(end))/du(i,i);
-    b = (conFun(u, Xp2(i,4:end)) - base.conp)/du(i,i);
-    dconp(i) = b(1);
-    dconp(i+3) = b(2);
+    con12 = conFun(u, a(end,4:end));
+    
+    base.dphip(i) = (phiFun(u, a(end,4:end)) - base.phip(end))/du(i,i);
+    base.dconp(i) = (con12(1) - base.conp(end,1))/du(i,i);
+    base.dconp(i+3) = (con12(2) - base.conp(end,2))/du(i,i);
 end
 
 % Get modifiers
 K = 0.6;
-m0phi = K*(phip - phi0_opt);
-m0con = K*(conp - con0_opt);
+m0phi = K*(base.phip(end) - phi0_opt);
+m0con = K*(base.conp(end,:) - con0_opt);
 
-m1phi = K*(dphip - dphi0_opt);
-m1con = K*(dconp - dcon0_opt);
+m1phi = K*(base.dphip - dphi0_opt);
+m1con = K*(base.dconp - dcon0_opt);
 
 % Make modified model
 phiMod = @(u)(phiCU(u) + m0phi + m1phi*(u-u0_opt'));
@@ -56,7 +57,7 @@ g2Mod = @(u)(g2CU(u) + m0con(2) + m1con(4:6)*(u-u0_opt'));
 unsolved = 1;
 k = 1;
 uGuess = u0_opt;
-xGuess = Xp;
+xGuess = Xp(end,4:end);
 
 while unsolved
     % Run model i
@@ -68,44 +69,48 @@ while unsolved
     [coni_opt(k,1), dconi_opt(k,1:3)] = g1CU(ui_opt(k,:)');
     [coni_opt(k,2), dconi_opt(k,4:6)] = g2CU(ui_opt(k,:)');
     
-    dphii_opt(k,:) = dphii_opt(k,:) + m1phi;
-    dconi_opt(k,1:3) = dconi_opt(k,1:3) + m1con(1:3);
-    dconi_opt(k,4:6) = dconi_opt(k,4:6) + m1con(4:6);
-    
     % Run plant @u0_opt
-    [Xp(k,:)] = CSTRplant(ui_opt(k,:), xGuess);
+    newXp = base.Xp(end,:);
+    [t,Xp] = ode15s(@(t,y)CSTRode(t,y), [0:0.1:tau],[ui_opt(k,:), newXp]);
+    n = numel(t);
+    base.t(end+1:end+n) = t+base.t(end);
+    base.Xp(end+1:end+n,:) = Xp(:,4:end);
     
     % Get phi and g
-    phip(k) = phiFun(ui_opt(k,:),Xp(k,:));
-    conp(k,:) = conFun(ui_opt(k,:),Xp(k,:));
+    base.phip(end+1:end+n) = phiFun(ui_opt(k,:),Xp(:,4:end));
+    base.conp(end+1:end+n,:) = conFun(ui_opt(k,:),Xp(:,4:end));
     
     for i = 1:3
         u = ui_opt(k,:) + du(i,:);
-        dphip(k,i) = (phiFun(u, CSTRplant(u,Xp(k,:))) - phip(k))/du(i,i);
-        a = (conFun(u, CSTRplant(u,Xp(k,:))) - conp(k,:))/du(i,i);
-        dconp(k,i) = a(1);
-        dconp(k,i+3) = a(2);
+        [c,a] = ode15s(@(t,y)CSTRode(t,y), [0:0.1:tau],[u, Xp2(i,4:end)]);
+        Xp2(i,:) = a(end,:);
+        con12 = conFun(u, a(end,4:end));
+        
+        base.dphip(i) = (phiFun(u, a(end,4:end)) - base.phip(end))/du(i,i);
+        base.dconp(i) = (con12(1) - base.conp(end,1))/du(i,i);
+        base.dconp(i+3) = (con12(2) - base.conp(end,2))/du(i,i);
     end
     
     % Get modifiers
-    m0phi = (1-K)*m0phi + K*(phip(k) - phii_opt(k));
-    m0con = (1-K)*m0con + K*(conp(k,:) - coni_opt(k,:));
+    m0phi = (1-K)*m0phi + K*(base.phip(end) - phii_opt(k));
+    m0con = (1-K)*m0con + K*(base.conp(end,:) - coni_opt(k,:));
     
-    m1phi = (1-K)*m1phi + K*(dphip(k,:) - dphii_opt(k,:));
-    m1con = (1-K)*m1con + K*(dconp(k,:) - dconi_opt(k,:));
+    m1phi = (1-K)*m1phi + K*(base.dphip(end,:) - dphii_opt(k,:));
+    m1con = (1-K)*m1con + K*(base.dconp(end,:) - dconi_opt(k,:));
     
     % Make modified model
     phiMod = @(u)(phiCU(u) + m0phi + m1phi*(u-ui_opt(k,:)'));
     g1Mod = @(u)(g1CU(u) + m0con(1) + m1con(1:3)*(u-ui_opt(k,:)'));
     g2Mod = @(u)(g2CU(u) + m0con(2) + m1con(4:6)*(u-ui_opt(k,:)'));
     
+    
     k = k + 1;
-    if k > 10
+    if k > 6
         unsolved = 0;
     end
 end
 
-plot(ui_opt(:,3))
+plot(base.t,base.phip)
 
 
 
