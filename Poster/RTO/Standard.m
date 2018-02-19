@@ -9,6 +9,9 @@ xGuess = [0.09, 0.36, 0.1, 0.25, 0.1, 0.1];
 
 [up_opt] = fmincon(@(x)phiFun(x,CSTRplant(x,xGuess)),[4, 12, 90],[],[],[],[],...
     [0,0,70],[20,50,120],@(x)conFun(x,CSTRplant(x,xGuess)),optionu);
+Xp_opt = CSTRplant(up_opt, xGuess);
+phip_opt = phiFun(up_opt,Xp_opt);
+conp_opt = conFun(up_opt,Xp_opt);
 
 % Run model 0
 [u0_opt] = fmincon(@(x)phiCU(x'),[4, 12, 90],[],[],[],[],...
@@ -25,6 +28,7 @@ xGuess = [0.09, 0.36, 0.1, 0.25, 0.1, 0.1];
 
 % Get phi and g
 phip = phiFun(u0_opt,Xp);
+phip0 = phip;
 conp = conFun(u0_opt,Xp);
 
 du = diag([0.01, 0.01, 0.1]);
@@ -38,7 +42,7 @@ for i = 1:3
 end
 
 % Get modifiers
-K =0.6;
+K =0.5;
 m0phi = K*(phip - phi0_opt);
 m0con = K*(conp - con0_opt);
 
@@ -99,4 +103,6 @@ while unsolved
     end
 end
 
-plot(ui_opt(:,1))
+plot([0:numel(phip)],-[phip0, phip])
+hold on
+plot([0 numel(phip)],-[phip_opt phip_opt],'b:')

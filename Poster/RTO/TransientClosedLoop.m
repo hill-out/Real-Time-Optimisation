@@ -54,7 +54,7 @@ for i = 1:2
 end
 
 % Get modifiers
-K =0.43;
+K = 0.4;
 m0phi = K*(base.phip(end) - phi0_opt);
 m0con = K*(base.conp(end,:) - con0_opt);
 

@@ -18,7 +18,7 @@ xGuess = [0.09, 0.36, 0.1, 0.25, 0.1, 0.1];
 [Xp0] = CSTRplant(u0_opt, xGuess);
 
 % Run plant for tau
-tau = 1000;
+tau = 10;
 [t,Xp] = ode15s(@(t,y)CSTRode(t,y), [0:0.01:tau],[u0_opt, Xp0]);
 base.t = t-t(end);
 base.Xp = Xp(:,4:end);
@@ -41,7 +41,7 @@ for i = 1:3
 end
 
 % Get modifiers
-K = 0.6;
+K = 0.03;
 m0phi = K*(base.phip(end) - phi0_opt);
 m0con = K*(base.conp(end,:) - con0_opt);
 
@@ -105,7 +105,7 @@ while unsolved
     
     
     k = k + 1;
-    if k > 6
+    if k > 300
         unsolved = 0;
     end
 end

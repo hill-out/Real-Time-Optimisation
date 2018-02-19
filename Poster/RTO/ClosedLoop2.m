@@ -65,7 +65,6 @@ while unsolved
     % Run model i
     [ri_opt(k,:)] = fmincon(@(x)phiMod(x'),rGuess,[],[],[],[],...
         [0,0],[1,50],@(x)deal([g1Mod(x'),g2Mod(x')],[]),optionu);
-    ui_opt(k,:) = plantController(ri_opt(k,:))';
     
     % Get phi and g
     [phii_opt(k), dphii_opt(k,:)] =  phiCR(ri_opt(k,:)');
@@ -97,15 +96,9 @@ while unsolved
     m1con = (1-K)*m1con + K*(dconp(k,:) - dconi_opt(k,:));
     
     % Make modified model
-    phiMod = @(r)(phiCR(r) + m0phi + m1phi*(r-ri_opt(k,:)'));
-    g1Mod = @(r)(g1CR(r) + m0con(1) + m1con(1:2)*(r-ri_opt(k,:)'));
-    g2Mod = @(r)(g2CR(r) + m0con(2) + m1con(3:4)*(r-ri_opt(k,:)'));
     
     k = k + 1;
-    if k > 20
         unsolved = 0;
     end
 end
-
-plot([r0_opt(1), ri_opt(:,1)'],[r0_opt(2), ri_opt(:,2)'])
 
