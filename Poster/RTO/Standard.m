@@ -42,7 +42,7 @@ for i = 1:3
 end
 
 % Get modifiers
-K =0.5;
+K = 0.8;
 m0phi = K*(phip - phi0_opt);
 m0con = K*(conp - con0_opt);
 
@@ -103,6 +103,6 @@ while unsolved
     end
 end
 
-plot([0:numel(phip)],-[phip0, phip])
+plot([0 numel(phip)],-[phip_opt phip_opt],'b--')
 hold on
-plot([0 numel(phip)],-[phip_opt phip_opt],'b:')
+plot([0:numel(phip)],-[phip0, phip])
