@@ -1,0 +1,8 @@
+function stairs2(x,y)
+    for i=1:length(x)-1
+        A(:,i) = [x(i) x(i+1)];
+        B(:,i) = [y(i) y(i)];
+    end
+    plot(A,B,'LineWidth',3,'color',[0,0.45,0.67]);
+    stairs(x,y,'LineWidth',1,'color',[0,0.45,0.67], );
+end

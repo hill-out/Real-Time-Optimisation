@@ -7,7 +7,8 @@ clear
 optionu = optimoptions('fmincon','Display','off');
 xGuess = [0.09, 0.36, 0.1, 0.25, 0.1, 0.1];
 
-[rp_opt] = [0.12, 6.034];
+[rp_opt] = [0.1061    6.0527];
+phip_opt =   -211.5920;
 % fmincon(@(x)phiFun(plantController(x)',CSTRplant(plantController(x)',xGuess)),...
 %     [0.09, 12],[],[],[],[],[0,0],[1,50],...
 %     @(x)conFun(plantController(x)',CSTRplant(plantController(x)',xGuess)),optionu);
@@ -30,7 +31,7 @@ u0_opt = a(end,1:3);
 Xp0 = a(end,4:end);
 
 % Run plant for tau
-tau = 25;
+tau = 500;
 [t,Xp] = ode15s(@(t,y)controlCSTRode(t,y,Kp), [0 tau],[u0_opt, Xp0]);
 base.t = t-t(end);
 base.Xp = Xp(:,4:end);
@@ -54,7 +55,7 @@ for i = 1:2
 end
 
 % Get modifiers
-K = 0.4;
+K = 1;
 m0phi = K*(base.phip(end) - phi0_opt);
 m0con = K*(base.conp(end,:) - con0_opt);
 
@@ -86,7 +87,7 @@ while unsolved
     % Run plant @u0_opt
     newXp = base.Xp(end,:);
     ui_opt(k,:) = plantController2(ri_opt(k,:),newXp, Kp, T0)';
-    [t,Xp] = ode15s(@(t,y)controlCSTRode(t,y,Kp), [0 tau],[ui_opt(k,:), newXp]);
+    [t,Xp] = ode15s(@(t,y)controlCSTRode(t,y,Kp), [0:1:tau],[ui_opt(k,:), newXp]);
     n = numel(t);
     base.t(end+1:end+n) = t+base.t(end);
     base.Xp(end+1:end+n,:) = Xp(:,4:end);
@@ -98,7 +99,7 @@ while unsolved
     for i = 1:2
         r = ri_opt(k,:) + dr(i,:);
         u = plantController2(r,Xp2(i,4:end),Kp,T0)';
-        [c,a] = ode15s(@(t,y)controlCSTRode(t,y,Kp), [0 tau],[u, Xp2(i,4:end)]);
+        [c,a] = ode15s(@(t,y)controlCSTRode(t,y,Kp), [0:1:tau],[u, Xp2(i,4:end)]);
         Xp2(i,:) = a(end,:);
         con12 = conFun(u, a(end,4:end));
         
@@ -121,12 +122,12 @@ while unsolved
     
     
     k = k + 1;
-    if k > 200
+    if k > 10
         unsolved = 0;
     end
 end
 
-plot(base.t,base.phip)
+plot(base.t,-base.phip)
 
 
 

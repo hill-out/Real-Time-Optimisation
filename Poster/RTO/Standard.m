@@ -98,7 +98,7 @@ while unsolved
     g2Mod = @(u)(g2CU(u) + m0con(2) + m1con(4:6)*(u-ui_opt(k,:)'));
     
     k = k + 1;
-    if k > 10
+    if k > 7
         unsolved = 0;
     end
 end

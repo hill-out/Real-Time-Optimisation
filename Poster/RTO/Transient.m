@@ -1,6 +1,6 @@
 % Transient
 addpath('../ConvexModel/')
-clear
+%clear
 %close all
 
 % Run model 0
@@ -18,7 +18,7 @@ xGuess = [0.09, 0.36, 0.1, 0.25, 0.1, 0.1];
 [Xp0] = CSTRplant(u0_opt, xGuess);
 
 % Run plant for tau
-tau = 10;
+tau = 30;
 [t,Xp] = ode15s(@(t,y)CSTRode(t,y), [0:0.01:tau],[u0_opt, Xp0]);
 base.t = t-t(end);
 base.Xp = Xp(:,4:end);
@@ -27,7 +27,7 @@ base.Xp = Xp(:,4:end);
 base.phip = phiFun(u0_opt,base.Xp);
 base.conp = conFun(u0_opt,base.Xp);
 
-du = diag([0.01, 0.01, 0.1]);
+du = diag([0.001, 0.001, 0.01]);
 
 for i = 1:3
     u = u0_opt + du(i,:);
@@ -41,7 +41,7 @@ for i = 1:3
 end
 
 % Get modifiers
-K = 0.03;
+K = 0.1;
 m0phi = K*(base.phip(end) - phi0_opt);
 m0con = K*(base.conp(end,:) - con0_opt);
 
@@ -105,12 +105,15 @@ while unsolved
     
     
     k = k + 1;
-    if k > 300
+    if k > 200
         unsolved = 0;
     end
 end
 
-plot(base.t,base.phip)
+
+plot(base.t,-base.phip)
+hold on
+
 
 
 
