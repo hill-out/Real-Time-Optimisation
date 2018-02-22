@@ -7,7 +7,7 @@ clear
 optionu = optimoptions('fmincon','Display','off');
 xGuess = [0.09, 0.36, 0.1, 0.25, 0.1, 0.1];
 
-[up_opt] = fmincon(@(x)phiFun(x,CSTRplant(x,xGuess)),[4, 12, 90],[],[],[],[],...
+[up_opt] = fmincon(@(x)phiFun(x,CSTRplant(x,xGuess)),[3.7780   10.0301  102.8543],[],[],[],[],...
     [0,0,70],[20,50,120],@(x)conFun(x,CSTRplant(x,xGuess)),optionu);
 Xp_opt = CSTRplant(up_opt, xGuess);
 phip_opt = phiFun(up_opt,Xp_opt);
@@ -29,14 +29,14 @@ conp_opt = conFun(up_opt,Xp_opt);
 % Get phi and g
 phip = phiFun(u0_opt,Xp);
 phip0 = phip;
-conp = conFun(u0_opt,Xp);
+conp0 = conFun(u0_opt,Xp);
 
 du = diag([0.01, 0.01, 0.1]);
 
 for i = 1:3
     u = u0_opt + du(i,:);
     dphip(i) = (phiFun(u, CSTRplant(u,Xp)) - phip)/du(i,i);
-    a = (conFun(u, CSTRplant(u,Xp)) - conp)/du(i,i);
+    a = (conFun(u, CSTRplant(u,Xp)) - conp0)/du(i,i);
     dconp(i) = a(1);
     dconp(i+3) = a(2);
 end
@@ -44,7 +44,7 @@ end
 % Get modifiers
 K = 0.8;
 m0phi = K*(phip - phi0_opt);
-m0con = K*(conp - con0_opt);
+m0con = K*(conp0 - con0_opt);
 
 m1phi = K*(dphip - dphi0_opt);
 m1con = K*(dconp - dcon0_opt);
@@ -98,7 +98,7 @@ while unsolved
     g2Mod = @(u)(g2CU(u) + m0con(2) + m1con(4:6)*(u-ui_opt(k,:)'));
     
     k = k + 1;
-    if k > 7
+    if k > 100
         unsolved = 0;
     end
 end

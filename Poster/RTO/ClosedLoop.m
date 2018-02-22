@@ -28,24 +28,24 @@ u0_opt = plantController(r0_opt)';
 [Xp] = CSTRplant(u0_opt, xGuess);
 
 % Get phi and g
-phip = phiFun(u0_opt,Xp);
-conp = conFun(u0_opt,Xp);
+phip0 = phiFun(u0_opt,Xp);
+conp0 = conFun(u0_opt,Xp);
 
 dr = diag([0.0001, 0.01]);
 
 for i = 1:2
     r = r0_opt + dr(i,:);
     u = plantController(r)';
-    dphip(i) = (phiFun(u, CSTRplant(u,Xp)) - phip)/dr(i,i);
-    a = (conFun(u, CSTRplant(u,Xp)) - conp)/dr(i,i);
+    dphip(i) = (phiFun(u, CSTRplant(u,Xp)) - phip0)/dr(i,i);
+    a = (conFun(u, CSTRplant(u,Xp)) - conp0)/dr(i,i);
     dconp(i) = a(1);
     dconp(i+2) = a(2);
 end
 
 % Get modifiers
-K =0.6;
-m0phi = K*(phip - phi0_opt);
-m0con = K*(conp - con0_opt);
+K = 0.4;
+m0phi = K*(phip0 - phi0_opt);
+m0con = K*(conp0 - con0_opt);
 
 m1phi = K*(dphip - dphi0_opt);
 m1con = K*(dconp - dcon0_opt);
@@ -102,7 +102,7 @@ while unsolved
     g2Mod = @(r)(g2CR(r) + m0con(2) + m1con(3:4)*(r-ri_opt(k,:)'));
     
     k = k + 1;
-    if k > 20
+    if k > 400
         unsolved = 0;
     end
 end

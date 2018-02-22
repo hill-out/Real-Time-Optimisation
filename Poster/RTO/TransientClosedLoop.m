@@ -31,7 +31,7 @@ u0_opt = a(end,1:3);
 Xp0 = a(end,4:end);
 
 % Run plant for tau
-tau = 25;
+tau = 500;
 [t,Xp] = ode15s(@(t,y)controlCSTRode(t,y,Kp), [0 tau],[u0_opt, Xp0]);
 base.t = t-t(end);
 base.Xp = Xp(:,4:end);
@@ -55,7 +55,7 @@ for i = 1:2
 end
 
 % Get modifiers
-K = 0.4;
+K = 1;
 m0phi = K*(base.phip(end) - phi0_opt);
 m0con = K*(base.conp(end,:) - con0_opt);
 
@@ -122,7 +122,7 @@ while unsolved
     
     
     k = k + 1;
-    if k > 400
+    if k > 20
         unsolved = 0;
     end
 end
