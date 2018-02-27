@@ -1,5 +1,5 @@
 % Transient Closed-Loop
-addpath('../ConvexModel/')
+addpath('ConvexModel')
 clear
 %close all
 
@@ -26,13 +26,13 @@ phip_opt =   -211.5920;
 Kp = -1000;
 T0 = 120;
 u0 = plantController2(r0_opt,xGuess,Kp,T0)';
-[~,a] = ode15s(@(t,y)controlCSTRode(t,y,Kp), [0 10000],[u0, xGuess]);
+[~,a] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 10000],[u0, xGuess]);
 u0_opt = a(end,1:3);
 Xp0 = a(end,4:end);
 
 % Run plant for tau
 tau = 500;
-[t,Xp] = ode15s(@(t,y)controlCSTRode(t,y,Kp), [0 tau],[u0_opt, Xp0]);
+[t,Xp] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau],[u0_opt, Xp0]);
 base.t = t-t(end);
 base.Xp = Xp(:,4:end);
 
@@ -45,7 +45,7 @@ dr = diag([0.001, 0.01]);
 for i = 1:2
     r = r0_opt + dr(i,:);
     u = plantController2(r,Xp0,Kp,T0)';
-    [c,a] = ode15s(@(t,y)controlCSTRode(t,y,Kp), [0 tau],[u, Xp0]);
+    [c,a] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau],[u, Xp0]);
     Xp2(i,:) = a(end,:);
     con12 = conFun(u, a(end,4:end));
     
@@ -87,7 +87,7 @@ while unsolved
     % Run plant @u0_opt
     newXp = base.Xp(end,:);
     ui_opt(k,:) = plantController2(ri_opt(k,:),newXp, Kp, T0)';
-    [t,Xp] = ode15s(@(t,y)controlCSTRode(t,y,Kp), [0:1:tau],[ui_opt(k,:), newXp]);
+    [t,Xp] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0:1:tau],[ui_opt(k,:), newXp]);
     n = numel(t);
     base.t(end+1:end+n) = t+base.t(end);
     base.Xp(end+1:end+n,:) = Xp(:,4:end);
