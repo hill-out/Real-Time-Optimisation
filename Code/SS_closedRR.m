@@ -1,4 +1,4 @@
-% Closed-loop
+% Closed-loop RR
 addpath ConvexModel\ CSTR\ OtherFunctions\ PlotFunctions\
 clear
 %close all
