@@ -99,7 +99,7 @@ while unsolved
     for i = 1:2
         r = ri_opt(k,:) + dr(i,:);
         u = plantController2(r,Xp2(i,4:end),Kp,T0)';
-        [c,a] = ode15s(@(t,y)controlCSTRode(t,y,Kp), [0:1:tau],[u, Xp2(i,4:end)]);
+        [c,a] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0:1:tau],[u, Xp2(i,4:end)]);
         Xp2(i,:) = a(end,:);
         con12 = conFun(u, a(end,4:end));
         

@@ -6,9 +6,9 @@ clear
 % variables
 Kp = -1000;
 T0 = 120;
-tau = 600;
-tFinal = 6000;
-K = 0.2;
+tau = 30;
+tFinal = 8000;
+K = 0.8;
 
 kMax = ceil(tFinal/tau);
 
@@ -115,9 +115,9 @@ while unsolved
     base.g2p(end+1:end+n) = g2Fun(up,Xp(:,4:end));
     
     for i = 1:2
-        r = rp0 + dr(i,:);
-        u = plantController2(r,Xp0,Kp,T0)';
-        [c,a] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau],[u, Xp0]);
+        r = rpi(k,:) + dr(i,:);
+        u = plantController2(r,Xp2(i,4:end),Kp,T0)';
+        [c,a] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau],[u, Xp2(i,4:end)]);
         Xp2(i,:) = a(end,:);
         
         dphip(i) = (phiFun(u, a(end,4:end)) - base.phip(end))/dr(i,i);
@@ -145,5 +145,5 @@ while unsolved
     end
 end
 
-plot([rp0(1), rpi(:,1)'],[rp0(2), rpi(:,2)'])
+%plot([rp0(1), rpi(:,1)'],[rp0(2), rpi(:,2)'])
 
