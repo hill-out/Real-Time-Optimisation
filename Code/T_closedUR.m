@@ -135,6 +135,14 @@ while unsolved
         dg2p(i) = (g2Fun(u, a(end,4:end)) - base.g2p(end))/dr(i,i);
     end
     
+    dOpt.du = base.u(end,:) - u0_opt;
+    dOpt.dC = base.Xp(end,:) - X0_opt;
+    dfun = NEgrad(base.u(end,:),dOpt);
+    
+    dphip = (dfun.dphidu' + dphi0_opt)*pinv(dy);
+    dg1p = (dfun.dg1du' + dg10_opt)*pinv(dy);
+    dg2p = (dfun.dg2du' + dg20_opt)*pinv(dy);
+    
     % Get modifiers
     m0phi = (1-K)*m0phi + K*(base.phip(end) - phii_opt(k));
     m0g1 = (1-K)*m0g1 + K*(base.g1p(end) - g1i_opt(k));

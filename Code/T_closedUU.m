@@ -7,7 +7,7 @@ clear
 Kp = -1000;
 T0 = 120;
 tau = 500;
-tFinal = 20000;
+tFinal = 40000;
 K = 0.8;
 
 kMax = ceil(tFinal/tau);
@@ -15,7 +15,6 @@ kMax = ceil(tFinal/tau);
 % True optimum
 optionu = optimoptions('fmincon','Display','off');
 xGuess = [0.09, 0.36, 0.1, 0.25, 0.1, 0.1];
-
 [rp_opt] = [0.12, 6.034];
 % fmincon(@(x)phiFun(plantController(x)',openPlant(plantController(x)',xGuess)),...
 %     [0.09, 12],[],[],[],[],[0,0],[1,50],...
@@ -115,24 +114,24 @@ while unsolved
     base.g1p(end+1:end+n) = g1Fun(up,Xp(:,4:end));
     base.g2p(end+1:end+n) = g2Fun(up,Xp(:,4:end));
     
-%     for i = 1:2
-%         r = rpi(k,:) + dr(i,:);
-%         u = plantController2(r,Xp2(i,4:end),Kp,T0)';
-%         [c,a] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau],[u, Xp2(i,4:end)]);
-%         Xp2(i,:) = a(end,:);
-%         
-%         dphip(i) = (phiFun(u, a(end,4:end)) - base.phip(end))/dr(i,i);
-%         dg1p(i) = (g1Fun(u, a(end,4:end)) - base.g1p(end))/dr(i,i);
-%         dg2p(i) = (g2Fun(u, a(end,4:end)) - base.g2p(end))/dr(i,i);
-%     end
+    for i = 1:2
+        r = rpi(k,:) + dr(i,:);
+        u = plantController2(r,Xp2(i,4:end),Kp,T0)';
+        [c,a] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau],[u, Xp2(i,4:end)]);
+        Xp2(i,:) = a(end,:);
+        
+        dphip(i) = (phiFun(u, a(end,4:end)) - base.phip(end))/dr(i,i);
+        dg1p(i) = (g1Fun(u, a(end,4:end)) - base.g1p(end))/dr(i,i);
+        dg2p(i) = (g2Fun(u, a(end,4:end)) - base.g2p(end))/dr(i,i);
+    end
     
     dOpt.du = base.u(end,:) - u0_opt;
     dOpt.dC = base.Xp(end,:) - X0_opt;
     dfun = NEgrad(base.u(end,:),dOpt);
     
-    dphip = dfun.dphidu';%*pinv(dy);
-    dg1p = dfun.dg1du';%*pinv(dy);
-    dg2p = dfun.dg2du';%*pinv(dy);
+    dphip = dfun.dphidu' + dphi0_opt;
+    dg1p = dfun.dg1du' + dg10_opt;
+    dg2p = dfun.dg2du' + dg20_opt;
     
     % Get modifiers
     m0phi = (1-K)*m0phi + K*(base.phip(end) - phii_opt(k));

@@ -1,4 +1,4 @@
-function [Xsol] = openPlant(u, xGuess)
+function [Xsol] = openPlant(u, xGuess, dtheta)
 % calculates the concentrations of the plant symbolically
 % -------------------------------------------------------
 % u         Inputs
@@ -11,15 +11,24 @@ if nargin<2
     xGuess = zeros(1,6);
 end
 
+% inputs
 F_Ain = u(1);
 F_Bin = u(2);
 T     = u(3);
-E = [8050, 12500];
+
+% uncertain model parameters
+k_0 = [1.66e6, 7.21e8, 2.67e12]; %1/s
+E = [5.543e4, 6.928e4, 9.238e4]; %1/K
 M = 2105; %kg
+
+if nargin == 3
+    E   = E + dtheta(1:3);
+end
+
 F = F_Ain + F_Bin; %kg/s
-k1 = 1.66e6*exp(-5.543e4/(8.314*(T+273.15))); %1/s
-k2 = 7.21e8*exp(-6.928e4/(8.314*(T+273.15))); %1/s
-k3 = 2.67e12*exp(-9.238e4/(8.314*(T+273.15))); %1/s
+k1 = k_0(1)*exp(-E(1)/(8.314*(T+273.15))); %1/s
+k2 = k_0(2)*exp(-E(3)/(8.314*(T+273.15))); %1/s
+k3 = k_0(3)*exp(-E(3)/(8.314*(T+273.15))); %1/s
 
 %% mass balances
 optionX = optimoptions('fsolve','Display','off');

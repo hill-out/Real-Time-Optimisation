@@ -1,4 +1,4 @@
-function [dfun] = openModelGrad(u)
+function [dfun] = openPlantGrad(u)
 % Calculates the gradients of C at u
 % ----------------------------------
 % u         Inputs to the model
@@ -6,18 +6,18 @@ function [dfun] = openModelGrad(u)
 % dfun      Sturcture of gradients
 % ----------------------------------
 
-baseC = openModel(u);
+baseC = openPlant(u);
 basePhi = phiFun(u,baseC);
 baseg1 = g1Fun(u,baseC);
 baseg2 = g2Fun(u,baseC);
 
-T = [8075, 12400];
-dT = diag(T)/1000;
-dU = diag(u)/1000;
+T = [5.543e4, 6.928e4, 9.238e4];
+dT = diag(T)/100000;
+dU = diag(u)/100000;
 
-for i = 1:2
+for i = 1:3
     % dCdT
-    newC = openModel(u,baseC,dT(i,:));
+    newC = openPlant(u,baseC,dT(i,:));
     dCdT(i,:) = (newC - baseC)/dT(i,i);
     
     % dPhidT
@@ -35,7 +35,7 @@ end
 
 for j = 1:numel(u)
     % dCdu
-    newC = openModel(u+dU(j,:),baseC);
+    newC = openPlant(u+dU(j,:),baseC);
     dCdu(j,:) = (newC - baseC)/dU(j,j);
     
     % dPhidu
@@ -52,13 +52,13 @@ for j = 1:numel(u)
 end
 
 for k = 1:numel(u)
-    newCk = openModel(u+dU(k,:),baseC);
+    newCk = openPlant(u+dU(k,:),baseC);
     newPhik = phiFun(u+dU(k,:),newCk);
     newg1k = g1Fun(u+dU(k,:),newCk);
     newg2k = g2Fun(u+dU(k,:),newCk);
     
     for j = 1:numel(u)
-        newCj = openModel(u+dU(k,:)+dU(j,:),baseC);
+        newCj = openPlant(u+dU(k,:)+dU(j,:),baseC);
         newPhij = phiFun(u+dU(k,:)+dU(j,:),newCj);
         newg1j = g1Fun(u+dU(k,:)+dU(j,:),newCj);
         newg2j = g2Fun(u+dU(k,:)+dU(j,:),newCj);
@@ -72,8 +72,8 @@ for k = 1:numel(u)
     ddg1dudu(k,:) = (dg1dudu - dg1du)/dU(k,k);
     ddg2dudu(k,:) = (dg2dudu - dg2du)/dU(k,k);
     
-    for i = 1:2
-        newCi = openModel(u+dU(k,:),baseC,dT(i,:));
+    for i = 1:3
+        newCi = openPlant(u+dU(k,:),baseC,dT(i,:));
         newPhii = phiFun(u+dU(k,:),newCi);
         newg1i = g1Fun(u+dU(k,:),newCi);
         newg2i = g2Fun(u+dU(k,:),newCi);
