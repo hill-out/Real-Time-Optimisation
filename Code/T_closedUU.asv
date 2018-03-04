@@ -6,8 +6,8 @@ clear
 % variables
 Kp = -1000;
 T0 = 120;
-tau = 500;
-tFinal = 20000;
+tau = 30;
+tFinal = 8000;
 K = 0.8;
 
 kMax = ceil(tFinal/tau);
@@ -127,21 +127,18 @@ while unsolved
 %     end
     
     dOpt.du = base.u(end,:) - u0_opt;
-    dOpt.dC = base.Xp(end,:) - X0_opt;
-    dfun = NEgrad(base.u(end,:),dOpt);
+    dOpt.dC = base.Xp(end
+    dfun = NEgrad(base.u(end,:))
     
-    dphip = dfun.dphidu';%*pinv(dy);
-    dg1p = dfun.dg1du';%*pinv(dy);
-    dg2p = dfun.dg2du';%*pinv(dy);
     
     % Get modifiers
     m0phi = (1-K)*m0phi + K*(base.phip(end) - phii_opt(k));
     m0g1 = (1-K)*m0g1 + K*(base.g1p(end) - g1i_opt(k));
     m0g2 = (1-K)*m0g2 + K*(base.g2p(end) - g2i_opt(k));
     
-    m1phi = (1-K)*m1phi + K*(dphip - dphii_opt*pinv(dy)*dy);
-    m1g1 = (1-K)*m1g1 + K*(dg1p - dg1i_opt*pinv(dy)*dy);
-    m1g2 = (1-K)*m1g2 + K*(dg2p - dg2i_opt*pinv(dy)*dy);
+    m1phi = (1-K)*m1phi + K*(dphip - dphii_opt*pinv(dy))*dy;
+    m1g1 = (1-K)*m1g1 + K*(dg1p - dg1i_opt*pinv(dy))*dy;
+    m1g2 = (1-K)*m1g2 + K*(dg2p - dg2i_opt*pinv(dy))*dy;
     
     % Make modified model
     phiMod = @(u)(phiCU(u') + m0phi + m1phi*(u-ui_opt(k,:))');
@@ -154,5 +151,5 @@ while unsolved
     end
 end
 
-plot([rp0(1), rpi(:,1)'],[rp0(2), rpi(:,2)'])
+%plot([rp0(1), rpi(:,1)'],[rp0(2), rpi(:,2)'])
 

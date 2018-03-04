@@ -1,24 +1,34 @@
-function [Xsol] = openModel(u, xGuess)
+function [Xsol] = openModel(u, xGuess, dtheta)
 % Symbolically solves the model 2-reaction CSTR
 % ---------------------------------------------
 % u         Inputs
 % xGuess    Guess of mass fractions (for speed)
+% dtheta    Change to uncertain model parameters [k_0(1), k_0(2), E(1), E(2), M]
 % 
 % Xsol      Mass Fraction [A,B,C,P,E,G]
 % ---------------------------------------------
 
-if nargin<2
+if nargin < 2
     xGuess = zeros(1,6);
 end
 
+% inputs
 F_Ain = u(1);
 F_Bin = u(2);
 T     = u(3);
-E = [8050, 12500];
+
+% uncertain model parameters
+k_0 = [2.189*1e8, 4.310*1e13]; %1/s
+E = [8100, 12300]; %1/K
 M = 2105; %kg
-F = F_Ain + F_Bin; %kg/s
-k1 = 2.189*1e8*exp(-E(1)/(T+273.15)); %1/s
-k2 = 4.310*1e13*exp(-E(2)/(T+273.15)); %1/s
+
+if nargin == 3
+    E   = E + dtheta(1:2);
+end
+
+F  = F_Ain + F_Bin; %kg/s
+k1 = k_0(1)*exp(-E(1)/(T+273.15)); %1/s
+k2 = k_0(2)*exp(-E(2)/(T+273.15)); %1/s
 
 %% mass balances
 optionX = optimoptions('fsolve','Display','off');
