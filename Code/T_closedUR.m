@@ -9,6 +9,7 @@ T0 = 120;
 tau = 500;
 tFinal = 8000;
 K = 0.2;
+NE = 1;
 
 kMax = ceil(tFinal/tau);
 
@@ -124,25 +125,27 @@ while unsolved
     base.g1p(end+1:end+n) = g1Fun(up,Xp(:,4:end));
     base.g2p(end+1:end+n) = g2Fun(up,Xp(:,4:end));
     
-    for i = 1:2
-        r = rpi(k,:) + dr(i,:);
-        u = plantController2(r,Xp2(i,4:end),Kp,T0)';
-        [c,a] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau],[u, Xp2(i,4:end)]);
-        Xp2(i,:) = a(end,:);
+    
+    if NE == 0; %run MU
+        for i = 1:2
+            r = rpi(k,:) + dr(i,:);
+            u = plantController2(r,Xp2(i,4:end),Kp,T0)';
+            [c,a] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau],[u, Xp2(i,4:end)]);
+            Xp2(i,:) = a(end,:);
+            
+            dphip(i) = (phiFun(u, a(end,4:end)) - base.phip(end))/dr(i,i);
+            dg1p(i) = (g1Fun(u, a(end,4:end)) - base.g1p(end))/dr(i,i);
+            dg2p(i) = (g2Fun(u, a(end,4:end)) - base.g2p(end))/dr(i,i);
+        end
+    else %run NE
+        dOpt.du = base.u(end,:) - u0_opt;
+        dOpt.dC = base.Xp(end,:) - X0_opt;
+        dfun = NEgrad(base.u(end,:),dOpt);
         
-        dphip(i) = (phiFun(u, a(end,4:end)) - base.phip(end))/dr(i,i);
-        dg1p(i) = (g1Fun(u, a(end,4:end)) - base.g1p(end))/dr(i,i);
-        dg2p(i) = (g2Fun(u, a(end,4:end)) - base.g2p(end))/dr(i,i);
+        dphip = (dfun.dphidu' + dphi0_opt)*pinv(dy);
+        dg1p = (dfun.dg1du' + dg10_opt)*pinv(dy);
+        dg2p = (dfun.dg2du' + dg20_opt)*pinv(dy);
     end
-    
-    dOpt.du = base.u(end,:) - u0_opt;
-    dOpt.dC = base.Xp(end,:) - X0_opt;
-    dfun = NEgrad(base.u(end,:),dOpt);
-    
-    dphip = (dfun.dphidu' + dphi0_opt)*pinv(dy);
-    dg1p = (dfun.dg1du' + dg10_opt)*pinv(dy);
-    dg2p = (dfun.dg2du' + dg20_opt)*pinv(dy);
-    
     % Get modifiers
     m0phi = (1-K)*m0phi + K*(base.phip(end) - phii_opt(k));
     m0g1 = (1-K)*m0g1 + K*(base.g1p(end) - g1i_opt(k));
