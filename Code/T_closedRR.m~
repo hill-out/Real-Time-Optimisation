@@ -7,8 +7,8 @@ clearvars -except fig
 Kp = -1000;
 T0 = 120;
 
-tau = 500;
-tFinal = 5000;
+tau = 300;
+tFinal = 6000;
 kMax = ceil(tFinal/tau);
 
 K = 1;
@@ -29,13 +29,8 @@ g1p_opt  = g1Fun(up_opt,Xp_opt);
 g2p_opt  = g2Fun(up_opt,Xp_opt);
 
 % Run model 0
-%[r0_opt] = fmincon(@(x)phiCR(x'),[0.09, 12],[],[],[],[],...
-%    [0,0],[1,50],@(x)deal([g1CR(x'),g2CR(x')],[]),optionu);
-[u0_opt] = fmincon(@(u)phiFun(u,openModel(u, xGuess)),[4, 12, 90],...
-    [],[],[],[],[0,0,60],[24,60,150],...
-    @(u)deal([g1Fun(u,openModel(u, xGuess)),g2Fun(u,openModel(u, xGuess))],[]),optionu);
-X0_opt = openModel(u0_opt, xGuess);
-r0_opt = yFromUX(u0_opt,X0_opt);
+[r0_opt] = fmincon(@(x)phiCR(x'),[0.09, 12],[],[],[],[],...
+    [0,0],[1,50],@(x)deal([g1CR(x'),g2CR(x')],[]),optionu);
 
 % Get phi and g
 [phi0_opt, dphi0_opt] =  phiCR(r0_opt');
@@ -43,15 +38,17 @@ r0_opt = yFromUX(u0_opt,X0_opt);
 [g20_opt, dg20_opt] = g2CR(r0_opt');
 
 % Run plant @u0_opt
+Kp = -1000;
+T0 = 120;
 u0 = plantController2(r0_opt,xGuess,Kp,T0)';
 [~,a] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 10000],[u0, xGuess]);
 u0_opt = a(end,1:3);
 Xp0 = a(end,4:end);
 
 % Run plant for tau
+tau = 500;
 [t,Xp] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau],[u0_opt, Xp0]);
 base.t = t-t(end);
-base.u = Xp(:,1:3);
 base.Xp = Xp(:,4:end);
 
 % Get phi and g
@@ -109,7 +106,6 @@ while unsolved
     [t,Xp] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0:1:tau],[ui_opt(k,:), newXp]);
     n = numel(t);
     base.t(end+1:end+n) = t+base.t(end);
-    base.u(end+1:end+n,:) = Xp(:,1:3);
     base.Xp(end+1:end+n,:) = Xp(:,4:end);
     
     % Get phi and g
@@ -155,18 +151,18 @@ while unsolved
     
     
     k = k + 1;
-    if k > kMax
+    if k > 20
         unsolved = 0;
     end
 end
 
 % solution analysis
-solysis(rpi,base,rp_opt,phip_opt,'RR',tau,K)
+solysis(rpi,base,rp_opt,phip_opt, tau, K)
 
 %plots
-try fig = allPlots(rpi, r0_opt, base, 'RR',tau, K, fig);
+try fig = allPlots(rpi, r0_opt, base, tau, K, fig);
 catch
-    fig = allPlots(rpi, r0_opt, base, 'RR',tau, K);
+    fig = allPlots(rpi, , base, tau, K);
 end
 
 

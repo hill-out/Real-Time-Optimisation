@@ -1,0 +1,10 @@
+clear
+allTau = ones(3,1)*250;
+allK = 0.8:0.1:1;
+
+for i = 1:3
+    tau = allTau(i);
+    K = allK(i);
+    T_closedUU
+    clearvars -except fig allTau allK
+end

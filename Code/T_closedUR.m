@@ -1,27 +1,32 @@
 % Transient Closed-loop UR 
 addpath ConvexModel CSTR OtherFunctions PlotFunctions
-clear
+clearvars -except fig
 %close all
 
 % variables
 Kp = -1000;
 T0 = 120;
-tau = 500;
-tFinal = 8000;
-K = 0.2;
-NE = 1;
 
+tau = 500;
+tFinal = 5000;
 kMax = ceil(tFinal/tau);
+
+K = 0.65;
+NE = 0;
 
 % True optimum
 optionu = optimoptions('fmincon','Display','off');
 xGuess = [0.09, 0.36, 0.1, 0.25, 0.1, 0.1];
 
-[rp_opt] = [0.12, 6.034];
-% fmincon(@(x)phiFun(plantController(x)',openPlant(plantController(x)',xGuess)),...
-%     [0.09, 12],[],[],[],[],[0,0],[1,50],...
-%     @(x)conFun(plantController(x)',openPlant(plantController(x)',xGuess)),optionu);
-
+% @[T0 = 120, Kp = -1000]
+rp_opt   = [0.10605,6.05325];
+up_opt   = plantController2(rp_opt,xGuess,Kp,T0)';
+[~,a]    = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 100000],[up_opt, xGuess]);
+up_opt   = a(end,1:3);
+Xp_opt   = a(end,4:end);
+phip_opt = phiFun(up_opt,Xp_opt);
+g1p_opt  = g1Fun(up_opt,Xp_opt);
+g2p_opt  = g2Fun(up_opt,Xp_opt);
 
 % Run model 0
 [u0_opt] = fmincon(@(u)phiFun(u,openModel(u, xGuess)),[4, 12, 90],...
@@ -71,7 +76,6 @@ for i = 1:2
 end
 
 % Get modifiers
-K = 0.4;
 m0phi = K*(base.phip(end) - phi0_opt);
 m0g1 = K*(base.g1p(end) - g10_opt);
 m0g2 = K*(base.g2p(end) - g20_opt);
@@ -125,8 +129,8 @@ while unsolved
     base.g1p(end+1:end+n) = g1Fun(up,Xp(:,4:end));
     base.g2p(end+1:end+n) = g2Fun(up,Xp(:,4:end));
     
-    
-    if NE == 0; %run MU
+    % Estimate plant gradient
+    if NE == 0 %run MU
         for i = 1:2
             r = rpi(k,:) + dr(i,:);
             u = plantController2(r,Xp2(i,4:end),Kp,T0)';
@@ -146,6 +150,7 @@ while unsolved
         dg1p = (dfun.dg1du' + dg10_opt)*pinv(dy);
         dg2p = (dfun.dg2du' + dg20_opt)*pinv(dy);
     end
+    
     % Get modifiers
     m0phi = (1-K)*m0phi + K*(base.phip(end) - phii_opt(k));
     m0g1 = (1-K)*m0g1 + K*(base.g1p(end) - g1i_opt(k));
@@ -166,5 +171,13 @@ while unsolved
     end
 end
 
-plot([rp0(1), rpi(:,1)'],[rp0(2), rpi(:,2)'])
+% solution analysis
+solysis(rpi,base,rp_opt,phip_opt,'UR',tau,K)
+
+%plots
+try fig = allPlots(rpi, rp0, base, 'UR',tau, K, fig);
+catch
+    fig = allPlots(rpi, rp0, base, 'UR',tau, K);
+end
+
 
