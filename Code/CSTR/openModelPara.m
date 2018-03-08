@@ -1,13 +1,15 @@
-function [Xsol] = openPlant(u, xGuess, dtheta)
+function [Xsol] = openModelPara(u, dPara, xGuess, dTheta)
 % calculates the concentrations of the plant symbolically
 % -------------------------------------------------------
 % u         Inputs
+% dPara     Parametric change from the plant (fraction)
 % xGuess    Guess mass fractions
+% dTheta    Parametric change from standard (for FD calc)
 % 
 % Xsol      Mass fractions
 % -------------------------------------------------------
 
-if nargin<2
+if nargin<3
     xGuess = zeros(1,6);
 end
 
@@ -19,10 +21,11 @@ T     = u(3);
 % uncertain model parameters
 k_0 = [1.66e6, 7.21e8, 2.67e12]; %1/s
 E = [5.543e4, 6.928e4, 9.238e4]; %1/K
+E = E.*dPara;
 M = 2105; %kg
 
-if nargin == 3
-    E   = E + dtheta(1:3);
+if nargin == 4
+    E   = E + dTheta(1:3);
 end
 
 F = F_Ain + F_Bin; %kg/s

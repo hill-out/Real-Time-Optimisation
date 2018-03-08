@@ -8,7 +8,7 @@ Kp = -1000;
 T0 = 120;
 
 %tau = 500;
-tFinal = 2000;
+tFinal = 3000;
 kMax = ceil(tFinal/tau);
 
 %K = 1;
