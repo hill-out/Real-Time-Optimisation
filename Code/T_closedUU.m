@@ -61,19 +61,34 @@ base.g2p = g2Fun(up0,base.Xp);
 
 dr = diag([0.001, 0.01]);
 
-for i = 1:2
-    r = rp0 + dr(i,:);
-    u = plantController2(r,Xp0,Kp,T0)';
-    [c,a] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau],[u, Xp0]);
-    Xp2(i,:) = a(end,:);
+if NE ~= 1
+    for i = 1:2
+        r = rp0 + dr(i,:);
+        u = plantController2(r,Xp0,Kp,T0)';
+        [c,a] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau],[u, Xp0]);
+        Xp2(i,:) = a(end,:);
+        
+        dphip(i) = (phiFun(u, a(end,4:end)) - base.phip(end))/dr(i,i);
+        dg1p(i) = (g1Fun(u, a(end,4:end)) - base.g1p(end))/dr(i,i);
+        dg2p(i) = (g2Fun(u, a(end,4:end)) - base.g2p(end))/dr(i,i);
+    end
     
-    dphip(i) = (phiFun(u, a(end,4:end)) - base.phip(end))/dr(i,i);
-    dg1p(i) = (g1Fun(u, a(end,4:end)) - base.g1p(end))/dr(i,i);
-    dg2p(i) = (g2Fun(u, a(end,4:end)) - base.g2p(end))/dr(i,i);
+    dphip = dphip*dy;
+    dg1p = dg1p*dy;
+    dg2p = dg2p*dy;
+    
+else %run NE
+    
+    dOpt.du = base.u(end,:) - u0_opt;
+    dOpt.dC = base.Xp(end,:) - X0_opt;
+    dfun = NEgrad(base.u(end,:),dOpt);
+    
+    dphip = dfun.dphidu' + dphi0_opt;
+    dg1p = dfun.dg1du' + dg10_opt;
+    dg2p = dfun.dg2du' + dg20_opt;
 end
 
 % Get modifiers
-
 m0phi = K*(base.phip(end) - phi0_opt);
 m0g1 = K*(base.g1p(end) - g10_opt);
 m0g2 = K*(base.g2p(end) - g20_opt);

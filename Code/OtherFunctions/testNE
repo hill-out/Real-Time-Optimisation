@@ -1,0 +1,15 @@
+%NEtest
+
+u0 = [4,12,90];
+dO.du = [0,0,0.1];
+
+b0 = openModelPara(u0, dPara, xGuess);
+b = openModelPara(u0+dO.du, dPara, xGuess);
+
+a0 = finDiff(@(u)phiFun(u,openModelPara(u, dPara, xGuess)), u0, 0.00001)';
+a = finDiff(@(u)phiFun(u,openModelPara(u, dPara, xGuess)), u0+dO.du, 0.00001)';
+da = a-a0;
+
+dO.dC = b-b0;
+
+da2 = NEgradPara(u0+dO.du,[1,1,1],dO);

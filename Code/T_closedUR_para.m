@@ -12,7 +12,7 @@ tFinal = 15000;
 kMax = ceil(tFinal/tau);
 
 K = 0.05;
-NE = 1;
+NE = 0;
 
 dPara = [1,1,1] + 0*[0.2,0.2,-0.2]/100;
 
@@ -80,7 +80,7 @@ if NE ~= 1
 else %run NE
     dOpt.du = base.u(end,:) - u0_opt;
     dOpt.dC = base.Xp(end,:) - X0_opt;
-    dfun = NEgradPara(base.u(end,:),dPara,dOpt);
+    dfun = NEgradPara(u0_opt+dOpt.du/2,dPara,dOpt);
     
     dphip = (dfun.dphidu' + dphi0_opt)*pinv(dy);
     dg1p = (dfun.dg1du' + dg10_opt)*pinv(dy);
