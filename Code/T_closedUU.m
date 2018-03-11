@@ -1,18 +1,18 @@
 % Transient Closed-loop UU conv
 %addpath ConvexModel CSTR OtherFunctions PlotFunctions
-%clearvars -except fig
-%close all
+clearvars -except fig
+close all
 
 % variables
 Kp = -1000;
 T0 = 120;
 
-%tau = 500;
-tFinal = 2000;
+tau = 500;
+tFinal = 3000;
 kMax = ceil(tFinal/tau);
 
-%K = 1;
-NE = 0;
+K = 1;
+NE = 1;
 
 % True optimum
 optionu = optimoptions('fmincon','Display','off');

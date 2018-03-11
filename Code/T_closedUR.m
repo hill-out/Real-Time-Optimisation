@@ -1,6 +1,6 @@
 % Transient Closed-loop UR 
-addpath ConvexModel CSTR OtherFunctions PlotFunctions
-clearvars -except fig
+%addpath ConvexModel CSTR OtherFunctions PlotFunctions
+%clearvars -except fig
 %close all
 
 % variables
@@ -12,7 +12,7 @@ tFinal = 5000;
 kMax = ceil(tFinal/tau);
 
 K = 0.65;
-NE = 0;
+NE = 1;
 
 % True optimum
 optionu = optimoptions('fmincon','Display','off');

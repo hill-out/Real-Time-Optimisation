@@ -16,7 +16,7 @@ catch
     fig.rr = figure('name','r1 vs. r2');
     
 end
-plot([rp0(1), rpi(:,1)'],[rp0(2), rpi(:,2)'],'DisplayName',dataName)
+plot([rp0(1), rpi(:,1)'],[rp0(2), rpi(:,2)'],'-o','DisplayName',dataName)
 legend('-DynamicLegend');
 legend show
 

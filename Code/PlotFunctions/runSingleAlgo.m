@@ -1,13 +1,13 @@
 clear
 close all
-allTau = ones(6,1)*10;
-allK = 0.5:0.05:0.6;
+allTau = [20,30,60,100,500];
+allK = [0.55,0.6,0.7,1,1];
 
-for i = 1:3
+for i = 1:5
     tau = allTau(i);
     K = allK(i);
-    T_closedUU
-    clearvars -except fig allTau allK
+    T_closedUR
+    clearvars -except fig allTau allK tFinal
 end
 
 optionu = optimoptions('fmincon','Display','off');
@@ -25,7 +25,7 @@ g1p_opt  = g1Fun(up_opt,Xp_opt);
 g2p_opt  = g2Fun(up_opt,Xp_opt);
 
 figure(fig.rr)
-plot(rp_opt(1),rp_opt(2),'rx')
+plot(rp_opt(1),rp_opt(2),'rx','LineWidth',4,'MarkerSize',15)
 
 figure(fig.phit)
 plot([0 tFinal],-[phip_opt,phip_opt],'r--')
