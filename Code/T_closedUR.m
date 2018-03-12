@@ -1,6 +1,6 @@
 % Transient Closed-loop UR 
 %addpath ConvexModel CSTR OtherFunctions PlotFunctions
-%clearvars -except fig
+clearvars -except fig
 %close all
 
 % variables

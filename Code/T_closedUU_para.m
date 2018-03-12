@@ -1,4 +1,4 @@
-% Transient Closed-loop UR Better Model 
+% Transient Closed-loop UU Better Model
 %addpath ConvexModel CSTR OtherFunctions PlotFunctions
 clearvars -except fig
 %close all
@@ -7,14 +7,14 @@ clearvars -except fig
 Kp = -1000;
 T0 = 120;
 
-tau = 60;
-tFinal = 3000;
+tau = 500;
+tFinal = 100000;
 kMax = ceil(tFinal/tau);
 
-K = 0.05;
+K = 0.1;
 NE = 1;
 
-dPara = [1,1,1] + 1*[0.2,0.2,-0.2]/100;
+dPara = [1,1,1] + 0*[0.2,0.2,-0.2]/100;
 
 % True optimum
 optionu = optimoptions('fmincon','Display','off');
@@ -29,6 +29,7 @@ Xp_opt   = a(end,4:end);
 phip_opt = phiFun(up_opt,Xp_opt);
 g1p_opt  = g1Fun(up_opt,Xp_opt);
 g2p_opt  = g2Fun(up_opt,Xp_opt);
+
 
 % Run model 0
 [u0_opt] = fmincon(@(u)phiFun(u,openModelPara(u, dPara, xGuess)),[4, 12, 90],...
@@ -47,9 +48,10 @@ dg20_opt = finDiff(@(u)g2Fun(u,openModelPara(u, dPara, xGuess)), u0_opt, 0.00001
 
 dy = finDiff(@(u)yFromUX(u,openModelPara(u, dPara, xGuess)),u0_opt, 0.00001)';
 
+
 % Run plant to steady
 rp0 = yFromUX(u0_opt,X0_opt);
-up = plantController3(rp0,X0_opt,Kp,T0)';
+up = plantController2(rp0,X0_opt,Kp,T0)';
 [~,a] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 10000],[up, X0_opt]);
 up0 = a(end,1:3);
 Xp0 = a(end,4:end);
@@ -66,47 +68,48 @@ base.g2p = g2Fun(up0,base.Xp);
 
 dr = diag([0.001, 0.01]);
 
-
 if NE ~= 1
     for i = 1:2
         r = rp0 + dr(i,:);
-        u = plantController3(r,Xp0,Kp,T0)';
+        u = plantController2(r,Xp0,Kp,T0)';
         [c,a] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau],[u, Xp0]);
         Xp2(i,:) = a(end,:);
         
         dphip(i) = (phiFun(u, a(end,4:end)) - base.phip(end))/dr(i,i);
         dg1p(i) = (g1Fun(u, a(end,4:end)) - base.g1p(end))/dr(i,i);
         dg2p(i) = (g2Fun(u, a(end,4:end)) - base.g2p(end))/dr(i,i);
+        
+        
     end
+    dphip = dphip*dy;
+    dg1p = dg1p*dy;
+    dg2p = dg2p*dy;
 else %run NE
     dOpt.du = base.u(end,:) - u0_opt;
     dOpt.dC = base.Xp(end,:) - X0_opt;
     dfun = NEgradPara(u0_opt+dOpt.du/2,dPara,dOpt);
     
-    %dudr = truedudr(rp0,base.Xp(end,:),Kp,T0,dr)';
-    %dudr = truedudr([0.09,12],base.Xp(end,:),Kp,T0,dr)';
-    dudr = bsxfun(@times,pinv(bsxfun(@times,dy,u0_opt))',u0_opt)';
-    %dudr = [0, 0, 1/dy(1,3); u0_opt(1)/u0_opt(2), 1, 0]'; 
+    dy_inv = bsxfun(@times,pinv(bsxfun(@times,dy,u0_opt))',u0_opt)';
     
-    dphip = (dfun.dphidu'*dudr + dphi0_opt*dudr);
-    dg1p = (dfun.dg1du'*dudr + dg10_opt*dudr);
-    dg2p = (dfun.dg2du'*dudr + dg20_opt*dudr);
+    dphip = (dfun.dphidu' + dphi0_opt);
+    dg1p = (dfun.dg1du' + dg10_opt);
+    dg2p = (dfun.dg2du' + dg20_opt);
 end
+
 
 % Get modifiers
 m0phi = K*(base.phip(end) - phi0_opt);
 m0g1 = K*(base.g1p(end) - g10_opt);
 m0g2 = K*(base.g2p(end) - g20_opt);
 
-m1phi = K*(dphip - dphi0_opt*pinv(dy));
-m1g1 = K*(dg1p - dg10_opt*pinv(dy));
-m1g2 = K*(dg2p - dg20_opt*pinv(dy));
-
+m1phi = K*(dphip - dphi0_opt*pinv(dy)*dy);
+m1g1 = K*(dg1p - dg10_opt*pinv(dy)*dy);
+m1g2 = K*(dg2p - dg20_opt*pinv(dy)*dy);
 
 % Make modified model
-phiMod = @(u)(phiFun(u,openModelPara(u, dPara, xGuess)) + m0phi + m1phi*(yFromUX(u,openModelPara(u, dPara, xGuess))-rp0)');
-g1Mod = @(u)(g1Fun(u,openModelPara(u, dPara, xGuess)) + m0g1 + m1g1*(yFromUX(u,openModelPara(u, dPara, xGuess))-rp0)');
-g2Mod = @(u)(g2Fun(u,openModelPara(u, dPara, xGuess)) + m0g2 + m1g2*(yFromUX(u,openModelPara(u, dPara, xGuess))-rp0)');
+phiMod = @(u)(phiFun(u,openModelPara(u, dPara, xGuess)) + m0phi + m1phi*(u-u0_opt)');
+g1Mod = @(u)(g1Fun(u,openModelPara(u, dPara, xGuess)) + m0g1 + m1g1*(u-u0_opt)');
+g2Mod = @(u)(g2Fun(u,openModelPara(u, dPara, xGuess)) + m0g2 + m1g2*(u-u0_opt)');
 
 % set-up iterations unsolved = 1;
 unsolved = 1;
@@ -117,8 +120,9 @@ uGuess = u0_opt;
 
 while unsolved
     % Run model i
-    [ui_opt(k,:)] = fmincon(@(u)phiMod(u),uGuess,[],[],[],[],...
-        [0,0,60],[200,400,400],@(u)deal([g1Mod(u),g2Mod(u)],[]),optionu);
+    [ui_opt(k,:)] = fmincon(@(u)phiMod(u),[4, 12, 90],...
+        [],[],[],[],[0,0,60],[24,60,150],...
+        @(u)deal([g1Mod(u),g2Mod(u)],[]),optionu);
     Xi_opt(k,:) = openModelPara(ui_opt(k,:), dPara, xGuess);
     
     % Get phi and g
@@ -135,7 +139,7 @@ while unsolved
     % Run plant for tau
     rpi(k,:) = yFromUX(ui_opt(k,:),Xi_opt(k,:));
     newXp = base.Xp(end,:);
-    up = plantController3(rpi(k,:),newXp, Kp, T0)';
+    up = plantController2(rpi(k,:),newXp, Kp, T0)';
     [t,Xp] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau],[up, newXp]);
     n = numel(t);
     base.t(end+1:end+n) = t+base.t(end);
@@ -151,7 +155,7 @@ while unsolved
     if NE == 0 %run MU
         for i = 1:2
             r = rpi(k,:) + dr(i,:);
-            u = plantController3(r,Xp2(i,4:end),Kp,T0)';
+            u = plantController2(r,Xp2(i,4:end),Kp,T0)';
             [c,a] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau],[u, Xp2(i,4:end)]);
             Xp2(i,:) = a(end,:);
             
@@ -159,35 +163,34 @@ while unsolved
             dg1p(i) = (g1Fun(u, a(end,4:end)) - base.g1p(end))/dr(i,i);
             dg2p(i) = (g2Fun(u, a(end,4:end)) - base.g2p(end))/dr(i,i);
         end
+        dphip = dphip*dy;
+        dg1p = dg1p*dy;
+        dg2p = dg2p*dy;
     else %run NE
         dOpt.du = base.u(end,:) - u0_opt;
         dOpt.dC = base.Xp(end,:) - X0_opt;
-        dfun = NEgradPara(u0_opt+dOpt.du/2,dPara,dOpt);
+        dfun = NEgradPara(base.u(end,:),dPara,dOpt);
         
-        %dudr = truedudr(rpi(k,:),base.Xp(end,:),Kp,T0,dr)';
-        %dudr(:,1) = (base.u(end,:)-base.u(1,:))/(rpi(end,1)-rp0(1));
-        %dudr(:,2) = (base.u(end,:)-base.u(1,:))/(rpi(end,2)-rp0(2));
-        dudr = bsxfun(@times,pinv(bsxfun(@times,dy,ui_opt(k,:)))',ui_opt(k,:))';
-        %dudr = [0, 0, 1/dy(1,3); ui_opt(k,1)/ui_opt(k,2), 1, 0]'; 
+        dudr = bsxfun(@times,pinv(bsxfun(@times,dy,u0_opt))',u0_opt)';
         
-        dphip = (dfun.dphidu'*dudr + dphi0_opt*dudr);
-        dg1p = (dfun.dg1du'*dudr  + dg10_opt*dudr);
-        dg2p = (dfun.dg2du'*dudr  + dg20_opt*dudr);
+        dphip = (dfun.dphidu' + dphi0_opt);
+        dg1p = (dfun.dg1du' + dg10_opt);
+        dg2p = (dfun.dg2du' + dg20_opt);
     end
-    
+
     % Get modifiers
     m0phi = (1-K)*m0phi + K*(base.phip(end) - phii_opt(k));
     m0g1 = (1-K)*m0g1 + K*(base.g1p(end) - g1i_opt(k));
     m0g2 = (1-K)*m0g2 + K*(base.g2p(end) - g2i_opt(k));
     
-    m1phi = (1-K)*m1phi + K*(dphip - dphii_opt*pinv(dy));
-    m1g1 = (1-K)*m1g1 + K*(dg1p - dg1i_opt*pinv(dy));
-    m1g2 = (1-K)*m1g2 + K*(dg2p - dg2i_opt*pinv(dy));
+    m1phi = (1-K)*m1phi + K*(dphip - dphii_opt);
+    m1g1 = (1-K)*m1g1 + K*(dg1p - dg1i_opt);
+    m1g2 = (1-K)*m1g2 + K*(dg2p - dg2i_opt);
     
     % Make modified model
-    phiMod = @(u)(phiFun(u,openModelPara(u, dPara, xGuess)) + m0phi + m1phi*(yFromUX(u,openModelPara(u, dPara, xGuess))-rpi(k,:))');
-    g1Mod = @(u)(g1Fun(u,openModelPara(u, dPara, xGuess)) + m0g1 + m1g1*(yFromUX(u,openModelPara(u, dPara, xGuess))-rpi(k,:))');
-    g2Mod = @(u)(g2Fun(u,openModelPara(u, dPara, xGuess)) + m0g2 + m1g2*(yFromUX(u,openModelPara(u, dPara, xGuess))-rpi(k,:))');
+    phiMod = @(u)(phiFun(u,openModelPara(u, dPara, xGuess)) + m0phi + m1phi*(u-ui_opt(k,:))');
+    g1Mod = @(u)(g1Fun(u,openModelPara(u, dPara, xGuess)) + m0g1 + m1g1*(u-ui_opt(k,:))');
+    g2Mod = @(u)(g2Fun(u,openModelPara(u, dPara, xGuess)) + m0g2 + m1g2*(u-ui_opt(k,:))');
     
     k = k + 1;
     if k > kMax
@@ -196,12 +199,11 @@ while unsolved
 end
 
 % solution analysis
-solysis(rpi,base,rp_opt,phip_opt,'UR',tau,K)
+solysis(rpi,base,rp_opt,phip_opt, 'UU', tau, K)
 
 %plots
-try fig = allPlots(rpi, rp0, base, 'UR',tau, K, fig);
+try fig = allPlots(rpi, rp0, base, 'UU',tau, K, fig);
 catch
-    fig = allPlots(rpi, rp0, base, 'UR',tau, K);
+    fig = allPlots(rpi, rp0, base, 'UU',tau, K);
 end
-
 

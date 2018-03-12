@@ -1,12 +1,12 @@
 clear
 close all
-allTau = [20,30,60,100,500];
-allK = [0.55,0.6,0.7,1,1];
+allTau = ones(10,1)*20;
+allK = 0.45:0.05:0.55;
 
-for i = 1:5
+for i = 1:3
     tau = allTau(i);
     K = allK(i);
-    T_closedUR
+    T_closedRR
     clearvars -except fig allTau allK tFinal
 end
 
