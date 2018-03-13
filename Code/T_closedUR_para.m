@@ -7,12 +7,12 @@ clearvars -except fig
 Kp = -1000;
 T0 = 120;
 
-tau = 60;
-tFinal = 3000;
+tau = 500;
+tFinal = 6000;
 kMax = ceil(tFinal/tau);
 
-K = 0.05;
-NE = 1;
+K = 1;
+meth = 1.5;
 
 dPara = [1,1,1] + 1*[0.2,0.2,-0.2]/100;
 
@@ -49,7 +49,7 @@ dy = finDiff(@(u)yFromUX(u,openModelPara(u, dPara, xGuess)),u0_opt, 0.00001)';
 
 % Run plant to steady
 rp0 = yFromUX(u0_opt,X0_opt);
-up = plantController3(rp0,X0_opt,Kp,T0)';
+up = plantController2(rp0,X0_opt,Kp,T0)';
 [~,a] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 10000],[up, X0_opt]);
 up0 = a(end,1:3);
 Xp0 = a(end,4:end);
@@ -64,13 +64,13 @@ base.phip = phiFun(up0,base.Xp);
 base.g1p = g1Fun(up0,base.Xp);
 base.g2p = g2Fun(up0,base.Xp);
 
-dr = diag([0.001, 0.01]);
+dr = diag([0.0005, 0.01]);
 
 
-if NE ~= 1
+if meth == 0 %run MU
     for i = 1:2
         r = rp0 + dr(i,:);
-        u = plantController3(r,Xp0,Kp,T0)';
+        u = plantController2(r,Xp0,Kp,T0)';
         [c,a] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau],[u, Xp0]);
         Xp2(i,:) = a(end,:);
         
@@ -78,15 +78,54 @@ if NE ~= 1
         dg1p(i) = (g1Fun(u, a(end,4:end)) - base.g1p(end))/dr(i,i);
         dg2p(i) = (g2Fun(u, a(end,4:end)) - base.g2p(end))/dr(i,i);
     end
-else %run NE
+else
     dOpt.du = base.u(end,:) - u0_opt;
     dOpt.dC = base.Xp(end,:) - X0_opt;
     dfun = NEgradPara(u0_opt+dOpt.du/2,dPara,dOpt);
     
-    %dudr = truedudr(rp0,base.Xp(end,:),Kp,T0,dr)';
-    %dudr = truedudr([0.09,12],base.Xp(end,:),Kp,T0,dr)';
-    dudr = bsxfun(@times,pinv(bsxfun(@times,dy,u0_opt))',u0_opt)';
-    %dudr = [0, 0, 1/dy(1,3); u0_opt(1)/u0_opt(2), 1, 0]'; 
+    if meth == 1.0 %run NE with perfect dudr
+        dudr = truedudr(rp0,base.Xp(end,:),Kp,T0,dr)';
+        
+    elseif meth == 1.1
+        dudr = pinv(dy);
+        
+    elseif meth == 1.2
+        dudr = bsxfun(@times,pinv(bsxfun(@times,dy,u0_opt))',u0_opt)';
+        
+    elseif meth == 1.3
+        dudr = bsxfun(@times,pinv(bsxfun(@times,dy,u0_opt))',u0_opt)';
+        
+    elseif meth == 1.4
+        dudr = [0, 0, 1/dy(1,3); u0_opt(1)/u0_opt(2), 1, 0]';
+        
+    elseif meth == 1.5 %run NE with FE dudr
+        kMax = ceil(tFinal/(2*tau));
+        
+        dudr = zeros(3,2);
+        ord = [2,1]; %fastest to slowest
+        u0 = base.u(end,:);
+        
+        for i = ord
+            r = rp0 + dr(i,:);
+            u = plantController2(r,base.Xp(end,:),Kp,T0)';
+            
+            [t,Xp] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau/2],[u, base.Xp(end,:)]);
+            n = numel(t);
+            base.t(end+1:end+n) = t+base.t(end);
+            base.u(end+1:end+n,:) = Xp(:,1:3);
+            base.Xp(end+1:end+n,:) = Xp(:,4:end);
+            
+            base.phip = phiFun(up0,base.Xp);
+            base.g1p = g1Fun(up0,base.Xp);
+            base.g2p = g2Fun(up0,base.Xp);
+            
+            
+            dudr(:,i) = (base.u(end,:) - u0)/dr(i,i);
+        end
+        
+    else
+        error('meth needs cannot be %d', meth)
+    end
     
     dphip = (dfun.dphidu'*dudr + dphi0_opt*dudr);
     dg1p = (dfun.dg1du'*dudr + dg10_opt*dudr);
@@ -118,14 +157,14 @@ uGuess = u0_opt;
 while unsolved
     % Run model i
     [ui_opt(k,:)] = fmincon(@(u)phiMod(u),uGuess,[],[],[],[],...
-        [0,0,60],[200,400,400],@(u)deal([g1Mod(u),g2Mod(u)],[]),optionu);
+        [0,0,60],[24,60,150],@(u)deal([g1Mod(u),g2Mod(u)],[]),optionu);
     Xi_opt(k,:) = openModelPara(ui_opt(k,:), dPara, xGuess);
     
     % Get phi and g
     phii_opt(k) = phiFun(ui_opt(k,:),openModelPara(ui_opt(k,:), dPara, xGuess));
     g1i_opt(k,:) = g1Fun(ui_opt(k,:),openModelPara(ui_opt(k,:), dPara, xGuess));
     g2i_opt(k,:) = g2Fun(ui_opt(k,:),openModelPara(ui_opt(k,:), dPara, xGuess));
-
+    
     dphii_opt = finDiff(@(u)phiFun(u,openModelPara(u, dPara, xGuess)), ui_opt(k,:), 0.00001)';
     dg1i_opt = finDiff(@(u)g1Fun(u,openModelPara(u, dPara, xGuess)), ui_opt(k,:), 0.00001)';
     dg2i_opt = finDiff(@(u)g2Fun(u,openModelPara(u, dPara, xGuess)), ui_opt(k,:), 0.00001)';
@@ -135,7 +174,7 @@ while unsolved
     % Run plant for tau
     rpi(k,:) = yFromUX(ui_opt(k,:),Xi_opt(k,:));
     newXp = base.Xp(end,:);
-    up = plantController3(rpi(k,:),newXp, Kp, T0)';
+    up = plantController2(rpi(k,:),newXp, Kp, T0)';
     [t,Xp] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau],[up, newXp]);
     n = numel(t);
     base.t(end+1:end+n) = t+base.t(end);
@@ -148,10 +187,10 @@ while unsolved
     base.g2p(end+1:end+n) = g2Fun(up,Xp(:,4:end));
     
     % Estimate plant gradient
-    if NE == 0 %run MU
+    if meth == 0 %run MU
         for i = 1:2
             r = rpi(k,:) + dr(i,:);
-            u = plantController3(r,Xp2(i,4:end),Kp,T0)';
+            u = plantController2(r,Xp2(i,4:end),Kp,T0)';
             [c,a] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau],[u, Xp2(i,4:end)]);
             Xp2(i,:) = a(end,:);
             
@@ -159,20 +198,56 @@ while unsolved
             dg1p(i) = (g1Fun(u, a(end,4:end)) - base.g1p(end))/dr(i,i);
             dg2p(i) = (g2Fun(u, a(end,4:end)) - base.g2p(end))/dr(i,i);
         end
-    else %run NE
+    else
         dOpt.du = base.u(end,:) - u0_opt;
         dOpt.dC = base.Xp(end,:) - X0_opt;
         dfun = NEgradPara(u0_opt+dOpt.du/2,dPara,dOpt);
         
-        %dudr = truedudr(rpi(k,:),base.Xp(end,:),Kp,T0,dr)';
-        %dudr(:,1) = (base.u(end,:)-base.u(1,:))/(rpi(end,1)-rp0(1));
-        %dudr(:,2) = (base.u(end,:)-base.u(1,:))/(rpi(end,2)-rp0(2));
-        dudr = bsxfun(@times,pinv(bsxfun(@times,dy,ui_opt(k,:)))',ui_opt(k,:))';
-        %dudr = [0, 0, 1/dy(1,3); ui_opt(k,1)/ui_opt(k,2), 1, 0]'; 
+        if meth == 1.0 %run NE with perfect dudr
+            dudr = truedudr(rpi(k,:),base.Xp(end,:),Kp,T0,dr)';
+            
+        elseif meth == 1.1
+            dudr = pinv(dy);
+            
+        elseif meth == 1.2
+            dudr = bsxfun(@times,pinv(bsxfun(@times,dy,u0_opt))',u0_opt)';
+            
+        elseif meth == 1.3
+            dudr = bsxfun(@times,pinv(bsxfun(@times,dy,ui_opt(k,:)))',ui_opt(k,:))';
+            
+        elseif meth == 1.4
+            dudr = [0, 0, 1/dy(1,3); u0_opt(1)/u0_opt(2), 1, 0]';
+            
+        elseif meth == 1.5 %run NE with FE dudr
+            dudr = zeros(3,2);
+            ord = [2,1]; %fastest to slowest
+            u0 = base.u(end,:);
+            
+            for i = ord
+                r = rpi(k,:) + dr(i,:);
+                u = plantController2(r,base.Xp(end,:),Kp,T0)';
+                
+                [t,Xp] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau/2],[u, base.Xp(end,:)]);
+                n = numel(t);
+                base.t(end+1:end+n) = t+base.t(end);
+                base.u(end+1:end+n,:) = Xp(:,1:3);
+                base.Xp(end+1:end+n,:) = Xp(:,4:end);
+                
+                % Get phi and g
+                base.phip(end+1:end+n) = phiFun(up,Xp(:,4:end));
+                base.g1p(end+1:end+n) = g1Fun(up,Xp(:,4:end));
+                base.g2p(end+1:end+n) = g2Fun(up,Xp(:,4:end));
+                
+                dudr(:,i) = (base.u(end,:) - u0)/dr(i,i);
+            end
+            
+        else
+            error('meth needs cannot be %d', meth)
+        end
         
         dphip = (dfun.dphidu'*dudr + dphi0_opt*dudr);
-        dg1p = (dfun.dg1du'*dudr  + dg10_opt*dudr);
-        dg2p = (dfun.dg2du'*dudr  + dg20_opt*dudr);
+        dg1p = (dfun.dg1du'*dudr + dg10_opt*dudr);
+        dg2p = (dfun.dg2du'*dudr + dg20_opt*dudr);
     end
     
     % Get modifiers
