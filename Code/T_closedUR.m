@@ -7,11 +7,11 @@ clearvars -except fig
 Kp = -1000;
 T0 = 120;
 
-tau = 100;
-tFinal = 5000;
+tau = 60;
+tFinal = 6000;
 kMax = ceil(tFinal/tau);
 
-K = 0.8;
+K = 1;
 meth = 1.5;
 
 % True optimum
@@ -96,7 +96,7 @@ else
         dudr = [0, 0, 1/dy(1,3); u0_opt(1)/u0_opt(2), 1, 0]';
         
     elseif meth == 1.5 %run NE with FE dudr
-        kMax = ceil(tFinal/(tau));
+        kMax = ceil(tFinal/(2*tau));
         
         dudr = zeros(3,2);
         ord = [2,1]; %fastest to slowest
