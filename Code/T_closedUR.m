@@ -7,12 +7,13 @@ clearvars -except fig
 Kp = -1000;
 T0 = 120;
 
-tau = 60;
+tau = 300;
 tFinal = 6000;
 kMax = ceil(tFinal/tau);
 
 K = 1;
-meth = 1.5;
+meth = 1;
+pow = 0.001;
 
 % True optimum
 optionu = optimoptions('fmincon','Display','off');
@@ -21,7 +22,7 @@ xGuess = [0.09, 0.36, 0.1, 0.25, 0.1, 0.1];
 % @[T0 = 120, Kp = -1000]
 rp_opt   = [0.10605,6.05325];
 up_opt   = plantController2(rp_opt,xGuess,Kp,T0)';
-[~,a]    = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 100000],[up_opt, xGuess]);
+[b,a]    = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0:1:10000],[up_opt, xGuess, 0]);
 up_opt   = a(end,1:3);
 Xp_opt   = a(end,4:end);
 phip_opt = phiFun(up_opt,Xp_opt);
@@ -54,9 +55,12 @@ Xp0 = a(end,4:end);
 
 % Run plant for tau
 [t,Xp] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau],[up0, Xp0]);
+
+n = numel(t);
 base.t = t-t(end);
 base.u = Xp(:,1:3);
 base.Xp = Xp(:,4:end);
+base.Xpn = Xp(:,4:end);
 
 base.phip = phiFun(up0,base.Xp);
 base.g1p = g1Fun(up0,base.Xp);
@@ -196,9 +200,9 @@ while unsolved
             dg2p(i) = (g2Fun(u, a(end,4:end)) - base.g2p(end))/dr(i,i);
         end
     else
-        dOpt.du = base.u(end,:) - u0_opt;
-        dOpt.dC = base.Xp(end,:) - X0_opt;
-        dfun = NEgrad(u0_opt+dOpt.du/2,dOpt);
+        dOpt.du = base.u(end,:) - ui_opt(k,:);
+        dOpt.dC = base.Xp(end,:) - Xi_opt(k,:);
+        dfun = NEgrad(base.u(end,:) - dOpt.du/2, dOpt);
         
         if meth == 1.0 %run NE with perfect dudr
             dudr = truedudr(rpi(k,:),base.Xp(end,:),Kp,T0,dr)';
@@ -237,14 +241,14 @@ while unsolved
                 
                 dudr(:,i) = (base.u(end,:) - u0)/dr(i,i);
             end
-            
+            awgn
         else
             error('meth needs cannot be %d', meth)
         end
         
-        dphip = (dfun.dphidu'*dudr + dphi0_opt*dudr);
-        dg1p = (dfun.dg1du'*dudr + dg10_opt*dudr);
-        dg2p = (dfun.dg2du'*dudr + dg20_opt*dudr);
+        dphip = (dfun.dphidu'*dudr + dphii_opt*dudr);
+        dg1p = (dfun.dg1du'*dudr + dg1i_opt*dudr);
+        dg2p = (dfun.dg2du'*dudr + dg2i_opt*dudr);
     end
     
     % Get modifiers

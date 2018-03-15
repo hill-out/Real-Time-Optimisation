@@ -2,7 +2,7 @@ function [dy] = closedPlantODE(t, y, Kp2)
 % Takes the time and setpoints of the plant and calculates the outputs
 % -------------------------------------------------------------------------
 % t         Current time
-% y         Plant out [F_Ap, F_Bp, T_R, X_Ap, X_Bp, X_Cp, X_Pp, X_Ep, X_Gp]
+% y         Plant out [F_Ap, F_Bp, T_R, X_Ap, X_Bp, X_Cp, X_Pp, X_Ep, X_Gp, X_An]
 % Kp2       Proportional gain of Xas to 
 %
 % dy        time derivative y
@@ -41,8 +41,13 @@ dF(6) = 0     - F*X(6)                   + 1.5*M*R3; %G
 % T controller
 dT_R = -Kp2*dF(1)/M;
 
+% noise
+XA_n = y(end);
+dXA_n = XA_n/6 + randn;
+
 % output
 dy(1:3) = [dF_A, dF_B, dT_R];
-dy(4:end) = dF/M;
+dy(4:end-1) = dF/M;
+dy(end) = dXA_n;
 
 end

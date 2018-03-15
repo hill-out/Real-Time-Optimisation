@@ -191,7 +191,7 @@ while unsolved
     else
         dOpt.du = base.u(end,:) - u0_opt;
         dOpt.dC = base.Xp(end,:) - X0_opt;
-        dfun = NEgrad(u0_opt+dOpt.du/2,dOpt);
+        dfun = NEgrad(base.u(end,:) - dOpt.du/2,dOpt);
         
         if meth == 1.0 %run NE with perfect dudr
             dudr = truedudr(rpi(k,:),base.Xp(end,:),Kp,T0,dr)';
