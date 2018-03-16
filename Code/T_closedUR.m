@@ -1,4 +1,4 @@
-% Transient Closed-loop UR 
+% Transient Closed-loop UR
 %addpath ConvexModel CSTR OtherFunctions PlotFunctions
 clearvars -except fig
 %close all
@@ -7,13 +7,21 @@ clearvars -except fig
 Kp = -1000;
 T0 = 120;
 
-tau = 300;
+tau = 100;
+K = 0.5;
+
 tFinal = 6000;
 kMax = ceil(tFinal/tau);
 
-K = 1;
-meth = 1;
-pow = 0.001;
+meth = 1.5;
+
+noise = 1;
+if noise
+    pow = 0.002;
+    time = now;
+    freq = 40;
+    [s{1:6}] = RandStream.create('mrg32k3a','NumStreams',6,'seed',time/2);
+end
 
 % True optimum
 optionu = optimoptions('fmincon','Display','off');
@@ -22,7 +30,7 @@ xGuess = [0.09, 0.36, 0.1, 0.25, 0.1, 0.1];
 % @[T0 = 120, Kp = -1000]
 rp_opt   = [0.10605,6.05325];
 up_opt   = plantController2(rp_opt,xGuess,Kp,T0)';
-[b,a]    = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0:1:10000],[up_opt, xGuess, 0]);
+[b,a]    = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0:1:10000],[up_opt, xGuess]);
 up_opt   = a(end,1:3);
 Xp_opt   = a(end,4:end);
 phip_opt = phiFun(up_opt,Xp_opt);
@@ -54,19 +62,36 @@ up0 = a(end,1:3);
 Xp0 = a(end,4:end);
 
 % Run plant for tau
-[t,Xp] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau],[up0, Xp0]);
-
-n = numel(t);
-base.t = t-t(end);
-base.u = Xp(:,1:3);
-base.Xp = Xp(:,4:end);
-base.Xpn = Xp(:,4:end);
+if ~noise
+    [t,Xp] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau],[up0, Xp0]);
+    
+    base.t = t-t(end);
+    base.u = Xp(:,1:3);
+    base.Xp = Xp(:,4:end);
+else
+    
+    for no = 1:6
+        state(:,no) = s{no}.State;
+        Xpn(:,no) = [0;randn(s{no},2*freq,1)]*pow;
+    end
+    
+    a = spline(linspace(0,2*tau,size(Xpn,1)),Xpn',linspace(0,2*tau,size(Xpn,1)*100));
+    b = diff(a');
+    
+    [t,Xp] = ode15s(@(t,y)closedPlantNoiseODE(t,y,Kp,...
+        @(t)spline(linspace(0,2*tau,size(b,1)),b',t)),[0 tau],[up0, Xp0, Xpn(1,:)*0]);
+    
+    base.t = t-t(end);
+    base.u = Xp(:,1:3);
+    base.Xpn = Xp(:,4:9);
+    base.Xp = Xp(:,4:9)+Xp(:,10:end);
+end
 
 base.phip = phiFun(up0,base.Xp);
 base.g1p = g1Fun(up0,base.Xp);
 base.g2p = g2Fun(up0,base.Xp);
 
-dr = diag([0.0005, 0.01]);
+dr = diag([0.001, 0.01]);
 
 if meth == 0 %run MU
     for i = 1:2
@@ -105,24 +130,56 @@ else
         dudr = zeros(3,2);
         ord = [2,1]; %fastest to slowest
         u0 = base.u(end,:);
-        
-        for i = ord
-            r = rp0 + dr(i,:);
-            u = plantController2(r,base.Xp(end,:),Kp,T0)';
-            
-            [t,Xp] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau/2],[u, base.Xp(end,:)]);
-            n = numel(t);
-            base.t(end+1:end+n) = t+base.t(end);
-            base.u(end+1:end+n,:) = Xp(:,1:3);
-            base.Xp(end+1:end+n,:) = Xp(:,4:end);
-            
-            base.phip = phiFun(up0,base.Xp);
-            base.g1p = g1Fun(up0,base.Xp);
-            base.g2p = g2Fun(up0,base.Xp);
-            
-            
-            dudr(:,i) = (base.u(end,:) - u0)/dr(i,i);
+        if ~noise
+            for i = ord
+                r = rp0 + dr(i,:);
+                u = plantController2(r,base.Xp(end,:),Kp,T0)';
+                
+                [t,Xp] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau/2],[u, base.Xp(end,:)]);
+                n = numel(t);
+                base.t(end+1:end+n) = t+base.t(end);
+                base.u(end+1:end+n,:) = Xp(:,1:3);
+                base.Xp(end+1:end+n,:) = Xp(:,4:end);
+                
+                base.phip = phiFun(up0,base.Xp);
+                base.g1p = g1Fun(up0,base.Xp);
+                base.g2p = g2Fun(up0,base.Xp);
+                
+                
+                dudr(:,i) = (base.u(end,:) - u0)/dr(i,i);
+            end
+        else
+            for i = ord
+                r = rp0 + dr(i,:);
+                u = plantController2(r,base.Xp(end,:),Kp,T0)';
+                
+                Xpn0 = Xpn;
+                clear Xpn
+                for no = 1:6
+                    state(:,no) = s{no}.State;
+                    Xpn(:,no) = [Xpn0(end-2*freq:end,no);randn(s{no},freq,1)*pow];
+                end
+                
+                a = spline(linspace(-tau,2*tau,size(Xpn,1)),Xpn',linspace(-tau,2*tau,size(Xpn,1)*100));
+                b = diff(a');
+                
+                [t,Xp] = ode15s(@(t,y)closedPlantNoiseODE(t,y,Kp,...
+                    @(t)spline(linspace(-tau,2*tau,size(b,1)),b',t)),[0 tau],[u, base.Xpn(end,:), base.Xp(end,:)-base.Xpn(end,:)]);
+                
+                n = numel(t);
+                base.t(end+1:end+n) = t+base.t(end);
+                base.u(end+1:end+n,:) = Xp(:,1:3);
+                base.Xpn(end+1:end+n,:) = Xp(:,4:9);
+                base.Xp(end+1:end+n,:) = Xp(:,4:9)+Xp(:,10:end);
+                
+                base.phip(end+1:end+n) = phiFun(u,Xp(:,4:9)+Xp(:,10:end));
+                base.g1p(end+1:end+n) = g1Fun(u,Xp(:,4:9)+Xp(:,10:end));
+                base.g2p(end+1:end+n) = g2Fun(u,Xp(:,4:9)+Xp(:,10:end));
+                
+                dudr(:,i) = (base.u(end,:) - u0)/dr(i,i);
+            end
         end
+        
         
     else
         error('meth needs cannot be %d', meth)
@@ -165,7 +222,7 @@ while unsolved
     phii_opt(k) = phiFun(ui_opt(k,:),openModel(ui_opt(k,:), xGuess));
     g1i_opt(k,:) = g1Fun(ui_opt(k,:),openModel(ui_opt(k,:), xGuess));
     g2i_opt(k,:) = g2Fun(ui_opt(k,:),openModel(ui_opt(k,:), xGuess));
-
+    
     dphii_opt = finDiff(@(u)phiFun(u,openModel(u, xGuess)), ui_opt(k,:), 0.00001)';
     dg1i_opt = finDiff(@(u)g1Fun(u,openModel(u, xGuess)), ui_opt(k,:), 0.00001)';
     dg2i_opt = finDiff(@(u)g2Fun(u,openModel(u, xGuess)), ui_opt(k,:), 0.00001)';
@@ -175,17 +232,44 @@ while unsolved
     % Run plant for tau
     rpi(k,:) = yFromUX(ui_opt(k,:),Xi_opt(k,:));
     newXp = base.Xp(end,:);
+    newXpn = base.Xpn(end,:);
     up = plantController2(rpi(k,:),newXp, Kp, T0)';
-    [t,Xp] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau],[up, newXp]);
-    n = numel(t);
-    base.t(end+1:end+n) = t+base.t(end);
-    base.u(end+1:end+n,:) = Xp(:,1:3);
-    base.Xp(end+1:end+n,:) = Xp(:,4:end);
+    
+    if ~noise
+        
+        
+        [t,Xp] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau],[up, newXp]);
+        n = numel(t);
+        base.t(end+1:end+n) = t+base.t(end);
+        base.u(end+1:end+n,:) = Xp(:,1:3);
+        base.Xp(end+1:end+n,:) = Xp(:,4:end);
+    else
+        
+        %[s{1:6}] = RandStream.create('mrg32k3a','NumStreams',6,'seed',time/2);
+        Xpn0 = Xpn;
+        clear Xpn
+        for no = 1:6
+            state(:,no) = s{no}.State;
+            Xpn(:,no) = [Xpn0(end-2*freq:end,no);randn(s{no},freq,1)*pow];
+        end
+        
+        a = spline(linspace(-tau,2*tau,size(Xpn,1)),Xpn',linspace(-tau,2*tau,size(Xpn,1)*100));
+        b = diff(a');
+        
+        [t,Xp] = ode15s(@(t,y)closedPlantNoiseODE(t,y,Kp,...
+            @(t)spline(linspace(-tau,2*tau,size(b,1)),b',t)),[0 tau],[up, newXpn, base.Xp(end,:)-base.Xpn(end,:)]);
+        
+        n = numel(t);
+        base.t(end+1:end+n) = t+base.t(end);
+        base.u(end+1:end+n,:) = Xp(:,1:3);
+        base.Xpn(end+1:end+n,:) = Xp(:,4:9);
+        base.Xp(end+1:end+n,:) = Xp(:,4:9)+Xp(:,10:end);
+    end
     
     % Get phi and g
-    base.phip(end+1:end+n) = phiFun(up,Xp(:,4:end));
-    base.g1p(end+1:end+n) = g1Fun(up,Xp(:,4:end));
-    base.g2p(end+1:end+n) = g2Fun(up,Xp(:,4:end));
+    base.phip(end+1:end+n) = phiFun(up,Xp(:,4:9)+Xp(:,10:end));
+    base.g1p(end+1:end+n) = g1Fun(up,Xp(:,4:9)+Xp(:,10:end));
+    base.g2p(end+1:end+n) = g2Fun(up,Xp(:,4:9)+Xp(:,10:end));
     
     % Estimate plant gradient
     if meth == 0 %run MU
@@ -223,25 +307,55 @@ while unsolved
             dudr = zeros(3,2);
             ord = [2,1]; %fastest to slowest
             u0 = base.u(end,:);
-            
-            for i = ord
-                r = rpi(k,:) + dr(i,:);
-                u = plantController2(r,base.Xp(end,:),Kp,T0)';
-                
-                [t,Xp] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau/2],[u, base.Xp(end,:)]);
-                n = numel(t);
-                base.t(end+1:end+n) = t+base.t(end);
-                base.u(end+1:end+n,:) = Xp(:,1:3);
-                base.Xp(end+1:end+n,:) = Xp(:,4:end);
-                
-                % Get phi and g
-                base.phip(end+1:end+n) = phiFun(up,Xp(:,4:end));
-                base.g1p(end+1:end+n) = g1Fun(up,Xp(:,4:end));
-                base.g2p(end+1:end+n) = g2Fun(up,Xp(:,4:end));
-                
-                dudr(:,i) = (base.u(end,:) - u0)/dr(i,i);
+            if ~noise
+                for i = ord
+                    r = rpi(k,:) + dr(i,:);
+                    u = plantController2(r,base.Xp(end,:),Kp,T0)';
+                    
+                    [t,Xp] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau/2],[u, base.Xp(end,:)]);
+                    n = numel(t);
+                    base.t(end+1:end+n) = t+base.t(end);
+                    base.u(end+1:end+n,:) = Xp(:,1:3);
+                    base.Xp(end+1:end+n,:) = Xp(:,4:end);
+                    
+                    % Get phi and g
+                    base.phip(end+1:end+n) = phiFun(u,Xp(:,4:end));
+                    base.g1p(end+1:end+n) = g1Fun(u,Xp(:,4:end));
+                    base.g2p(end+1:end+n) = g2Fun(u,Xp(:,4:end));
+                    
+                    dudr(:,i) = (base.u(end,:) - u0)/dr(i,i);
+                end
+            else
+                for i = ord
+                    r = rpi(k,:) + dr(i,:);
+                    u = plantController2(r,base.Xp(end,:),Kp,T0)';
+                    
+                    Xpn0 = Xpn;
+                    clear Xpn
+                    for no = 1:6
+                        state(:,no) = s{no}.State;
+                        Xpn(:,no) = [Xpn0(end-2*freq:end,no);randn(s{no},freq,1)*pow];
+                    end
+                    
+                    a = spline(linspace(-tau,2*tau,size(Xpn,1)),Xpn',linspace(-tau,2*tau,size(Xpn,1)*100));
+                    b = diff(a');
+                    
+                    [t,Xp] = ode15s(@(t,y)closedPlantNoiseODE(t,y,Kp,...
+                        @(t)spline(linspace(-tau,2*tau,size(b,1)),b',t)),[0 tau],[u, base.Xpn(end,:), base.Xp(end,:)-base.Xpn(end,:)]);
+                    
+                    n = numel(t);
+                    base.t(end+1:end+n) = t+base.t(end);
+                    base.u(end+1:end+n,:) = Xp(:,1:3);
+                    base.Xpn(end+1:end+n,:) = Xp(:,4:9);
+                    base.Xp(end+1:end+n,:) = Xp(:,4:9)+Xp(:,10:end);
+                    
+                    base.phip(end+1:end+n) = phiFun(u,Xp(:,4:9)+Xp(:,10:end));
+                    base.g1p(end+1:end+n) = g1Fun(u,Xp(:,4:9)+Xp(:,10:end));
+                    base.g2p(end+1:end+n) = g2Fun(u,Xp(:,4:9)+Xp(:,10:end));
+                    
+                    dudr(:,i) = (base.u(end,:) - u0)/dr(i,i);
+                end
             end
-            awgn
         else
             error('meth needs cannot be %d', meth)
         end
