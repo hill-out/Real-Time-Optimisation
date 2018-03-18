@@ -1,0 +1,8 @@
+% run the plant of choice until steady for a map of points to get contours
+
+X_As = linspace(0.8,0.12,21);
+F_Bs = linspace(3,12,46);
+
+[a{:}] = meshgrid(X_As, F_Bs);
+
+rRange = [a{1}(:),a{2}()];

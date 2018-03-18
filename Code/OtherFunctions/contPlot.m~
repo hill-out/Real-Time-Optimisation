@@ -1,0 +1,79 @@
+function [fig] = contPlot(X_As, F_Bs, fig)
+% run the plant of choice until steady for a map of points to get contours
+
+if nargin < 2
+    F_Bs = linspace(3,12,41);
+    if nargin < 1
+        X_As = linspace(0.08,0.12,21);
+    end
+end
+
+[a,b] = meshgrid(X_As, F_Bs);
+
+rRange = [a(:),b(:)];
+
+Kp = -1000;
+T0 = 120;
+xGuess = [0.08, 0.37, 0.1, 0.25, 0.1, 0.1];
+
+for i = 1:size(a,1)
+    for j = 1:size(a,2)
+        r = [a(i,j),b(i,j)];
+        up = plantController2(r,xGuess,Kp,T0)';
+        [~,c] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 10000],[up, xGuess]);
+        up0 = c(end,1:3);
+        Xp0 = c(end,4:end);
+        
+        phip(i,j) = phiFun(up0,Xp0);
+        g1p(i,j) = g1Fun(up0,Xp0);
+        g2p(i,j) = g2Fun(up0,Xp0);
+        
+        xGuess = Xp0;
+    end
+end
+
+try figure(fig.rr) % r1 vs. r2
+    hold on
+catch
+    fig.rr = figure('name','r1 vs. r2');
+end
+
+C = contour(X_As,F_Bs,-phip,[floor(min(min(-phip))/10)*10:10:ceil(max(max(-phip))/10)*10]);
+run = 1;
+i = 1;
+j = 1;
+b = axis;
+while run
+    d = C(:,i);
+    e = C(:,i+[1:d(2)]);
+    if min(e(2,:))<8 && max(e(2,:))>8
+        f = spline(e(2,:),e(1,:),8);
+        g = diff(e')';
+        h = e(2,1:end-1) + g(2,:)/2;
+        m(1) = spline(h,g(1,:),8);
+        m(2) = spline(h,g(2,:),8);
+        
+        n = rad2deg(atan(((m(2)/(b(4)-b(3)))/(m(1)/(b(2)-b(1))))));
+        if n < 0
+            n = n +180;
+        end
+        text(f,8,'rotation',n,'horizontalalignment','centre','verticalalignment','middle');
+        
+    end
+    i = i+d(2)+1;
+    if i > size(C,2)
+        run = 0;
+    end
+end
+
+
+figure('name','temp');
+[a,~] = contourf(X_As,F_Bs,g1p,[0 0]);
+close temp
+
+figure(fig.rr)
+c = patch([a(1,2:end),a(1,end)+0.01,a(1,end)+0.01],[a(2,2:end),a(2,end),a(2,2)],'red','facealpha',0.1,'linestyle','none');
+
+chH = get(gca,'Children');
+set(gca,'Children',[chH(end:-1:1)])
+end

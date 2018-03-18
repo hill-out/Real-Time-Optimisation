@@ -1,16 +1,17 @@
-% Transient Closed-loop UR
+% Transient Closed-loop UR PI
 %addpath ConvexModel CSTR OtherFunctions PlotFunctions
 clearvars -except fig
 %close all
 
 % variables
 Kp = -1000;
+Ki = -2;
 T0 = 120;
 
 tau = 500;
-K = 1;
+K = 0.5;
 
-tFinal = 3000;
+tFinal = 20000;
 kMax = ceil(tFinal/tau);
 
 meth = 1;
@@ -26,7 +27,7 @@ end
 
 % True optimum
 optionu = optimoptions('fmincon','Display','off');
-xGuess = [0.08, 0.37, 0.1, 0.25, 0.1, 0.1];
+xGuess = [0.09, 0.36, 0.1, 0.25, 0.1, 0.1];
 
 % @[T0 = 120, Kp = -1000]
 rp_opt   = [0.10605,6.05325];
@@ -57,18 +58,22 @@ dy = finDiff(@(u)yFromUX(u,openModel(u, xGuess)),u0_opt, 0.00001)';
 
 % Run plant to steady
 rp0 = yFromUX(u0_opt,X0_opt);
-up = plantController2(rp0,X0_opt,Kp,T0)';
-[~,a] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 10000],[up, X0_opt]);
+del = [0, 0; 0, 0];
+up = plantControllerPI(rp0,Kp,Ki,T0,del)';
+
+[~,a] = ode15s(@(t,y)closedPlantODE_PI(t,y,Kp,Ki,rp0), [0 100000],[up, X0_opt]);
 up0 = a(end,1:3);
 Xp0 = a(end,4:end);
 
 % Run plant for tau
 if ~noise
-    [t,Xp] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau],[up0, Xp0]);
     
+    [t,Xp] = ode15s(@(t,y)closedPlantODE_PI(t,y,Kp,Ki,rp0), [0 tau],[up0, Xp0]);
+    n = numel(t);
     base.t = t-t(end);
     base.u = Xp(:,1:3);
     base.Xp = Xp(:,4:end);
+    base.del = (rp0(1) - Xp(:,4));
 else
     
     for no = 1:6
@@ -233,8 +238,7 @@ while unsolved
     % Run plant for tau
     rpi(k,:) = yFromUX(ui_opt(k,:),Xi_opt(k,:));
     newXp = base.Xp(end,:);
-    
-    up = plantController2(rpi(k,:),newXp, Kp, T0)';
+    up = plantControllerPI(rpi(k,:), Kp, Ki, T0, [base.t(end-n+1:end),base.del(end-n+1:end)])';
     
     if ~noise
         
@@ -244,6 +248,7 @@ while unsolved
         base.t(end+1:end+n) = t+base.t(end);
         base.u(end+1:end+n,:) = Xp(:,1:3);
         base.Xp(end+1:end+n,:) = Xp(:,4:end);
+        base.del(end+1:end+n,:) = rpi(k,1) - Xp(:,4);
         
         % Get phi and g
         base.phip(end+1:end+n) = phiFun(up,Xp(:,4:9));
@@ -402,8 +407,4 @@ catch
     fig = allPlots(rpi, rp0, base, 'UR',tau, K);
 end
 
-%contours
-X_Ac = linspace(min([rpi(:,1);rp0(1)])*0.9,max([rpi(:,1);rp0(1)])*1.1,21);
-F_Bc = linspace(min([rpi(:,2);rp0(2)])*0.9,max([rpi(:,2);rp0(2)])*1.1,21);
-fig = contPlot(X_Ac, F_Bc, fig);
 

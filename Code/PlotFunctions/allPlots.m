@@ -14,7 +14,6 @@ try figure(fig.rr) % r1 vs. r2
     hold on
 catch
     fig.rr = figure('name','r1 vs. r2');
-    
 end
 plot([rp0(1), rpi(:,1)'],[rp0(2), rpi(:,2)'],'-o','DisplayName',dataName)
 legend('-DynamicLegend');
