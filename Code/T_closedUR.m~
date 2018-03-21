@@ -7,10 +7,10 @@ clearvars -except fig
 Kp = -1000;
 T0 = 120;
 
-tau = 60;
-K = 0.4;
+tau = 300;
+K = 1;
 
-tFinal = 6000;
+tFinal = 10000;
 kMax = ceil(tFinal/tau);
 
 meth = 1;
@@ -18,8 +18,8 @@ meth = 1;
 noise = 1;
 
 if noise
-    pow = 0.02;
-    freq = 60;
+    pow = 0.01;
+    freq = 10;
     
     [s{1:6}] = RandStream.create('mrg32k3a','NumStreams',6,'seed','shuffle');
 end

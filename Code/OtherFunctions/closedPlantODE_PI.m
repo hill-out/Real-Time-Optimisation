@@ -1,23 +1,27 @@
-function [dy] = closedPlantODE_PI(t, y, Kp, Ki, r)
+function [dy] = closedPlantODE_PI(t, y, Kp, Ki, T0, r)
 % Takes the time and setpoints of the plant and calculates the outputs
 % -------------------------------------------------------------------------
 % t         Current time
-% y         Plant out [F_Ap, F_Bp, T_R, X_Ap, X_Bp, X_Cp, X_Pp, X_Ep, X_Gp, X_An]
+% y         Plant out [X_Ap, X_Bp, X_Cp, X_Pp, X_Ep, X_Gp, X_An]
 % Kp        Proportional gain of Xas to 
 %
 % dy        time derivative y
 % -------------------------------------------------------------------------
+persistent t_prev 
+global error uODE
+
+if isempty(t_prev)
+    t_prev = 0;
+end
 
 dy    = zeros(size(y)); %initialise
 
-F_Ain = y(1);
-F_Bin = y(2);
-T     = y(3);
-X     = y(4:end);
+u = plantControllerPI(r, y, Kp, Ki, T0);
 
-% flow controller
-dF_B = 0;
-dF_A = 0;
+F_Ain = u(1);
+F_Bin = u(2);
+T     = u(3);
+X     = y;
 
 
 % CSTR
@@ -39,10 +43,12 @@ dF(5) = 0     - F*X(5)          + 2*M*R2           ; %E
 dF(6) = 0     - F*X(6)                   + 1.5*M*R3; %G
 
 % T controller
-dT_R = -Kp*dF(1)/M + Ki*(r(1)-X(1));
-
+error = error + (r(1) - X(1))*(t - t_prev);
+uODE = plantControllerPI(r, y, Kp, Ki, T0);
 % output
-dy(1:3) = [dF_A, dF_B, dT_R];
-dy(4:end) = dF/M;
 
+dy(1:end) = dF/M;
+
+
+t_prev = t;
 end

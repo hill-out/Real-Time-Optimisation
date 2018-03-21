@@ -14,7 +14,7 @@ rRange = [a(:),b(:)];
 
 Kp = -1000;
 T0 = 120;
-xGuess = [0.08, 0.37, 0.1, 0.25, 0.1, 0.1];
+xGuess = [0.09, 0.36, 0.1, 0.25, 0.1, 0.1];
 
 for i = 1:size(a,1)
     for j = 1:size(a,2)
@@ -45,7 +45,7 @@ j = 1;
 ax = gca;
 b1 = ax.DataAspectRatio;
 b2 = ax.PlotBoxAspectRatio;
-p = 10;
+p = 8;
 while run
     d = C(:,i);
     e = C(:,i+[1:d(2)]);

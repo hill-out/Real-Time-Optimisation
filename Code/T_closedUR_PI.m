@@ -4,40 +4,43 @@ clearvars -except fig
 %close all
 
 % variables
-Kp = -1000;
-Ki = -2;
+Kp = -2000;
+Ki = -2.0;
 T0 = 120;
 
-tau = 500;
-K = 0.5;
+tau = 300;
+K = 0.8;
 
-tFinal = 20000;
+tFinal = 6000;
 kMax = ceil(tFinal/tau);
 
 meth = 1;
 
 noise = 0;
-
 if noise
-    pow = 0.002;
-    freq = 40;
+    pow = 0.01;
+    freq = 100;
     
     [s{1:6}] = RandStream.create('mrg32k3a','NumStreams',6,'seed','shuffle');
 end
+
+% globals
+global error
+error = 0;
 
 % True optimum
 optionu = optimoptions('fmincon','Display','off');
 xGuess = [0.09, 0.36, 0.1, 0.25, 0.1, 0.1];
 
 % @[T0 = 120, Kp = -1000]
-rp_opt   = [0.10605,6.05325];
-up_opt   = plantController2(rp_opt,xGuess,Kp,T0)';
-[b,a]    = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0:1:10000],[up_opt, xGuess]);
-up_opt   = a(end,1:3);
-Xp_opt   = a(end,4:end);
-phip_opt = phiFun(up_opt,Xp_opt);
-g1p_opt  = g1Fun(up_opt,Xp_opt);
-g2p_opt  = g2Fun(up_opt,Xp_opt);
+% rp_opt   = [0.10605,6.05325];
+% up_opt   = plantController2(rp_opt,xGuess,Kp,T0)';
+% [b,a]    = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0:1:10000],[up_opt, xGuess]);
+% up_opt   = a(end,1:3);
+% Xp_opt   = a(end,4:end);
+% phip_opt = phiFun(up_opt,Xp_opt);
+% g1p_opt  = g1Fun(up_opt,Xp_opt);
+% g2p_opt  = g2Fun(up_opt,Xp_opt);
 
 % Run model 0
 [u0_opt] = fmincon(@(u)phiFun(u,openModel(u, xGuess)),[4, 12, 90],...
@@ -58,22 +61,23 @@ dy = finDiff(@(u)yFromUX(u,openModel(u, xGuess)),u0_opt, 0.00001)';
 
 % Run plant to steady
 rp0 = yFromUX(u0_opt,X0_opt);
-del = [0, 0; 0, 0];
-up = plantControllerPI(rp0,Kp,Ki,T0,del)';
+up = plantControllerPI(rp0,X0_opt,Kp,Ki,T0)';
+options = @(r)odeset('OutputFcn',@(t,y,flag) myOutputFcn(t,y,flag,  Kp, Ki, T0, r));
 
-[~,a] = ode15s(@(t,y)closedPlantODE_PI(t,y,Kp,Ki,rp0), [0 100000],[up, X0_opt]);
-up0 = a(end,1:3);
-Xp0 = a(end,4:end);
+[a0,a] = ode45(@(t,y)closedPlantODE_PI(t,y,Kp,Ki,T0,rp0), [0 10000],[X0_opt],options(rp0));
+clear closedPlantODE_PI
+up0 = uODE(end,:);
+Xp0 = a(end,:);
 
 % Run plant for tau
 if ~noise
     
-    [t,Xp] = ode15s(@(t,y)closedPlantODE_PI(t,y,Kp,Ki,rp0), [0 tau],[up0, Xp0]);
-    n = numel(t);
+    [t,Xp] = ode15s(@(t,y)closedPlantODE_PI(t,y,Kp,Ki,T0,rp0), [0 tau],[Xp0],options(rp0));
+    clear closedPlantODE_PI
+
     base.t = t-t(end);
-    base.u = Xp(:,1:3);
-    base.Xp = Xp(:,4:end);
-    base.del = (rp0(1) - Xp(:,4));
+    base.u = uODE;
+    base.Xp = Xp;
 else
     
     for no = 1:6
@@ -238,22 +242,22 @@ while unsolved
     % Run plant for tau
     rpi(k,:) = yFromUX(ui_opt(k,:),Xi_opt(k,:));
     newXp = base.Xp(end,:);
-    up = plantControllerPI(rpi(k,:), Kp, Ki, T0, [base.t(end-n+1:end),base.del(end-n+1:end)])';
+    
+    up = plantControllerPI(rpi(k,:),X0_opt,Kp,Ki,T0)';
     
     if ~noise
         
+        [t,Xp] = ode45(@(t,y)closedPlantODE_PI(t,y,Kp,Ki,T0,rpi(k,:)), [0:1:tau],[newXp],options(rpi(k,:)));
+        clear closedPlantODE_PI
         
-        [t,Xp] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau],[up, newXp]);
-        n = numel(t);
-        base.t(end+1:end+n) = t+base.t(end);
-        base.u(end+1:end+n,:) = Xp(:,1:3);
-        base.Xp(end+1:end+n,:) = Xp(:,4:end);
-        base.del(end+1:end+n,:) = rpi(k,1) - Xp(:,4);
-        
+        base.t = [base.t; base.t(end) + t];
+        base.u = [base.u; uODE];
+        base.Xp = [base.Xp; Xp];
+                
         % Get phi and g
-        base.phip(end+1:end+n) = phiFun(up,Xp(:,4:9));
-        base.g1p(end+1:end+n) = g1Fun(up,Xp(:,4:9));
-        base.g2p(end+1:end+n) = g2Fun(up,Xp(:,4:9));
+        base.phip = [base.phip; phiFun(up,Xp)];
+        base.g1p = [base.g1p; g1Fun(up,Xp)];
+        base.g2p = [base.g2p; g2Fun(up,Xp)];
     else
         newXpn = base.Xpn(end,:);
         %[s{1:6}] = RandStream.create('mrg32k3a','NumStreams',6,'seed',time/2);
@@ -399,7 +403,7 @@ while unsolved
 end
 
 % solution analysis
-solysis(rpi,base,rp_opt,phip_opt,'UR',tau,K)
+%solysis(rpi,base,rp_opt,phip_opt,'UR',tau,K)
 
 %plots
 try fig = allPlots(rpi, rp0, base, 'UR',tau, K, fig);
