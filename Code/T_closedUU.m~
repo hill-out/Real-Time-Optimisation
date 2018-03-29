@@ -274,9 +274,9 @@ while unsolved
             error('meth needs cannot be %d', meth)
         end
         
-        dphip = (dfun.dphidu' + dphi0_NE*dudu);
-        dg1p = (dfun.dg1du' + dg10_NE*dudu);
-        dg2p = (dfun.dg2du' + dg20_NE*dudu);
+        dphip = (dfun.dphidu' + dphi0_NE)*dudu;
+        dg1p = (dfun.dg1du' + dg10_NE)*dudu;
+        dg2p = (dfun.dg2du' + dg20_NE)*dudu;
     end
     
     % Get modifiers
