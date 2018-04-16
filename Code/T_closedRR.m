@@ -7,12 +7,17 @@ clearvars -except fig
 Kp = -1000;
 T0 = 120;
 
-tau = 60;
-tFinal = 6000;
-kMax = ceil(tFinal/tau);
+tFinal = 10000;
+steady = 0;
+if steady
+    tau = 2000;
+else
+    tau = 30;
+end
 
-K = 1;
-meth = 1.5;
+K = 0.4;
+
+meth = 0;
 
 % True optimum
 optionu = optimoptions('fmincon','Display','off');
@@ -60,13 +65,33 @@ base.t = t-t(end);
 base.u = Xp(:,1:3);
 base.Xp = Xp(:,4:end);
 
+base.ti = base.t(end);
+
 % Get phi and g
 base.phip = phiFun(u0_opt,base.Xp);
 base.g1p = g1Fun(u0_opt,base.Xp);
 base.g2p = g2Fun(u0_opt,base.Xp);
 
 dr = diag([0.001, 0.01]);
-if meth == 0 %run MU
+
+%Gradient Estimation
+if meth == -1
+    % Perfect grad. est.
+    xSteady = closedPlant(rp0,X0_opt, @(r, x)plantController2(r, x, Kp, T0));
+    uSteady = plantController2(rp0, xSteady, Kp, T0)';
+    
+    for i = 1:2
+        r = rp0 + dr(i,:);
+        
+        xSteady2 = closedPlant(r,xSteady, @(r, x)plantController2(r, x, Kp, T0));
+        uSteady2 = plantController2(r, xSteady2, Kp, T0)';
+        
+        dphip(i) = (phiFun(uSteady2,xSteady2) - phiFun(uSteady,xSteady))/dr(i,i);
+        dg1p(i) = (g1Fun(xSteady2,xSteady2) - g1Fun(uSteady,xSteady))/dr(i,i);
+        dg2p(i) = (g2Fun(xSteady2,xSteady2) - g2Fun(uSteady,xSteady))/dr(i,i);
+    end
+    
+elseif meth == 0 %run MU
     for i = 1:2
         r = rp0 + dr(i,:);
         u = plantController2(r,Xp0,Kp,T0)';
@@ -162,22 +187,55 @@ while unsolved
     [g1i_opt(k), dg1i_opt] = g1CR(rpi(k,:)');
     [g2i_opt(k), dg2i_opt] = g2CR(rpi(k,:)');
     
-    % Run plant @u0_opt
+        
     newXp = base.Xp(end,:);
     ui_opt(k,:) = plantController2(rpi(k,:),newXp, Kp, T0)';
-    [t,Xp] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0:1:tau],[ui_opt(k,:), newXp]);
-    n = numel(t);
-    base.t(end+1:end+n) = t+base.t(end);
-    base.u(end+1:end+n,:) = Xp(:,1:3);
-    base.Xp(end+1:end+n,:) = Xp(:,4:end);
     
+    if steady
+        [t,Xp] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0:0.1:0.9,logspace(0,log10(tau),100)],[ui_opt(k,:), newXp]);
+        
+        % take until steady
+        XpS = Xp(end,4:end);
+        XpSn = all(bsxfun(@times,abs(Xp(:,4:end) - XpS),1./XpS)<0.0001,2);
+        n1 = find(XpSn, 1, 'first');
+        n2 = find(t>300, 1, 'first');
+        
+        n = max(n1,n2);
+    else
+        [t,Xp] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 tau],[ui_opt(k,:), newXp]);
+        
+        % take the whole run
+        n = numel(t);
+    end
+    
+    base.t(end+1:end+n) = t(1:n)+base.t(end);
+    base.u(end+1:end+n,:) = Xp(1:n,1:3);
+    base.Xp(end+1:end+n,:) = Xp(1:n,4:end);
+    
+    base.ti(end+1) = base.t(end);
     % Get phi and g
-    base.phip(end+1:end+n) = phiFun(ui_opt(k,:),Xp(:,4:end));
-    base.g1p(end+1:end+n,:) = g1Fun(ui_opt(k,:),Xp(:,4:end));
-    base.g2p(end+1:end+n,:) = g2Fun(ui_opt(k,:),Xp(:,4:end));
+    base.phip(end+1:end+n) = phiFun(Xp(1:n,1:3),Xp(1:n,4:end));
+    base.g1p(end+1:end+n) = g1Fun(Xp(1:n,1:3),Xp(1:n,4:end));
+    base.g2p(end+1:end+n) = g2Fun(Xp(1:n,1:3),Xp(1:n,4:end));
     
     % Estimate plant gradient
-    if meth == 0 %run MU
+    if meth == -1        
+        % Perfect grad. est.
+        xSteady = closedPlant(rpi(k,:),base.Xp(end,:), @(r, x)plantController2(r, x, Kp, T0));
+        uSteady = plantController2(rpi(k,:), xSteady, Kp, T0)';
+        
+        for i = 1:2
+            r = rpi(k,:) + dr(i,:);
+            
+            xSteady2 = closedPlant(r,xSteady, @(r, x)plantController2(r, x, Kp, T0));
+            uSteady2 = plantController2(r, xSteady2, Kp, T0)';
+            
+            dphip(i) = (phiFun(uSteady2,xSteady2) - phiFun(uSteady,xSteady))/dr(i,i);
+            dg1p(i) = (g1Fun(uSteady2,xSteady2) - g1Fun(uSteady,xSteady))/dr(i,i);
+            dg2p(i) = (g2Fun(uSteady2,xSteady2) - g2Fun(uSteady,xSteady))/dr(i,i);
+        end
+        
+    elseif meth == 0 %run MU
         for i = 1:2
             r = rpi(k,:) + dr(i,:);
             u = plantController2(r,Xp2(i,4:end),Kp,T0)';
@@ -224,7 +282,7 @@ while unsolved
                 base.Xp(end+1:end+n,:) = Xp(:,4:end);
                 
                 % Get phi and g
-                base.phip(end+1:end+n) = phiFun(base.,Xp(:,4:end));
+                base.phip(end+1:end+n) = phiFun(base.u(end,:),Xp(:,4:end));
                 base.g1p(end+1:end+n) = g1Fun(ui_opt(k,:),Xp(:,4:end));
                 base.g2p(end+1:end+n) = g2Fun(ui_opt(k,:),Xp(:,4:end));
                 
@@ -256,7 +314,7 @@ while unsolved
     
     
     k = k + 1;
-    if k > kMax
+    if base.t(end) > tFinal
         unsolved = 0;
     end
 end

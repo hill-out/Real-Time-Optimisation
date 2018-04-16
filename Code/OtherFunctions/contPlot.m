@@ -38,18 +38,31 @@ catch
     fig.rr = figure('name','r1 vs. r2');
 end
 
-C = contour(X_As,F_Bs,-phip,[floor(min(min(-phip))/10)*10:10:ceil(max(max(-phip))/10)*10]);
+C = contour(X_As,F_Bs,-phip,[floor(min(min(-phip))/10)*10:10:ceil(max(max(-phip))/10)*10],'color','black');
 run = 1;
 i = 1;
 j = 1;
 ax = gca;
 b1 = ax.DataAspectRatio;
 b2 = ax.PlotBoxAspectRatio;
-p = 8;
+p = 9;
 while run
     d = C(:,i);
     e = C(:,i+[1:d(2)]);
+    diffChange = [1,find(sign(diff(e(2,1:end-1))) ~= sign(diff(e(2,2:end)))),size(e,2)];
+    increasing = ~any(diffChange);
+    if ~increasing
+        % set e equal to the first range with p in it
+        for loop = 1:numel(diffChange)-1
+            if min(e(2,diffChange(loop):diffChange(loop+1)))<p && max(e(2,diffChange(loop):diffChange(loop+1)))>p
+                e = e(:,diffChange(loop):diffChange(loop+1));
+                break
+            end
+        end
+    end
+    
     if min(e(2,:))<p && max(e(2,:))>p
+        
         f = spline(e(2,:),e(1,:),p);
         g = diff(e')';
         h = e(2,1:end-1) + g(2,:)/2;

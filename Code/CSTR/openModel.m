@@ -19,7 +19,7 @@ T     = u(3);
 
 % uncertain model parameters
 k_0 = [2.189*1e8, 4.310*1e13]; %1/s
-E = [8100, 12500]; %1/K
+E = [8050, 12500]; %1/K
 M = 2105; %kg
 
 if nargin == 3

@@ -5,7 +5,6 @@ function [dfun] = openModelGrad(u)
 %
 % dfun      Sturcture of gradients
 % ----------------------------------
-global dudu
 baseC = openModel(u);
 basePhi = phiFun(u,baseC);
 baseg1 = g1Fun(u,baseC);
@@ -89,15 +88,15 @@ for k = 1:numel(u)
 end
 
 % output
-dfun.ddphidudu = ddPhidudu*dudu*dudu;
-dfun.ddg1dudu = ddg1dudu*dudu*dudu;
-dfun.ddg2dudu = ddg2dudu*dudu*dudu;
+dfun.ddphidudu = ddPhidudu;
+dfun.ddg1dudu = ddg1dudu;
+dfun.ddg2dudu = ddg2dudu;
 
-dfun.ddphidudT = (ddPhidudT'*dudu)';
-dfun.ddg1dudT = (ddg1dudT'*dudu)';
-dfun.ddg2dudT = (ddg2dudT'*dudu)';
+dfun.ddphidudT = (ddPhidudT')';
+dfun.ddg1dudT = (ddg1dudT')';
+dfun.ddg2dudT = (ddg2dudT')';
 
-dfun.dCdu = (dCdu'*dudu)';
+dfun.dCdu = dCdu;
 dfun.dCdT = dCdT;
 
 % dfun.dCdu = [zeros(3,1), ones(3,1)];

@@ -1,18 +1,17 @@
-function [dudr] = truedudr(r0,Xp,Kp,T0,dr)
+function [dudr] = truedudr(r0,Xp,cont,dr)
 
-r = r0;
-u = plantController2(r,Xp,Kp,T0)';
-[~,a] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 3000],[u, Xp]);
-u0 = a(end,1:3);
+
+Xp0 = closedPlant(r0,Xp,cont);
+u0 = cont(r0, Xp0);
 dudr = zeros(2,3);
 
-for i = 2:-1:1
-    Xp = a(end,4:end);
+for i = 1:2
     r = r0 + dr(i,:);
-    u = plantController2(r,Xp,Kp,T0)';
-    [~,a] = ode15s(@(t,y)closedPlantODE(t,y,Kp), [0 3000],[u, Xp]);
-    u1 = a(end,1:3);
-    dudr(i,:) = (u1-u0)/dr(i,i);
+    Xp = closedPlant(r,Xp0,cont);
+    u = cont(r, Xp);
+    
+    dudr(i,:) = (u-u0)/dr(i,i);
+    
 end
 
 end

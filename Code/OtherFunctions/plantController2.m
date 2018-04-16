@@ -7,7 +7,7 @@ function [u] = plantController2(r, x, Kp, T0)
 % ---------------------------------------------
 
 u = zeros(3,1);
-u(2) = r(2);
+u(2) = r(2)+2;
 u(1) = u(2)/2.4;
 
 % Temperature controller

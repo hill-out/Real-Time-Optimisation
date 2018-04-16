@@ -1,0 +1,63 @@
+% ------------------------------| T_closed |------------------------------
+% A combined method for all closed algorithms using transient measurements
+
+%% changeable variables
+if holdVar == 0 % Change variables
+    
+    % Set up the plant controller
+    controller = @(r, x)plantController2(r, x, -1000, 120);
+    
+    % Set up the MA iteration variables
+    tau = 300; % Iteration time-step
+    tFinal = 5000; % Min end time
+    kMax = ceil(tFinal/tau); % Number of iterations
+    
+    K = 0.7; % Gain of MA iterations
+    
+    % Set up method for gradient estimation
+    % -------| Method Key |----------------
+    % 0     Direct MU gradient estimation
+    % 1     NE gradient estimation over plant
+    % 1.0   Perfect dudr
+    % 1.1   dudr = pinv(dydu) [fail]
+    % 1.11  dudr = *scaled by nominal [u]* pinv(dydu) [fail]
+    % 1.12  dudr = *scaled by nominal [u + y]* pinv(dydu) [fail]
+    % 1.13  dudr = *scaled by iteration [u]* pinv(dydu) [fail]
+    % 1.14  dudr = *scaled by iteration [u + y]* pinv(dydu) [fail]
+    % 1.2   Limited controller knowledge estimation of dudr
+    % 1.3   Transient FE estimation of dudr
+    method = 1;
+    
+    % Set up noise
+    noise = 0; %noise or not
+    
+    if noise
+        pow = 0.02; % Relative amplitude
+        freq = 60;  % Relative frequency
+        
+        % Set up noise
+        [s{1:6}] = RandStream.create('mrg32k3a','NumStreams',6,'seed','shuffle');
+    end
+    
+    % Set up closed loop algorithm
+    % -------| Algo Key |---------
+    % 0         UR method
+    % 1         UU method
+    % 2         RR method
+    algo = 0;
+    
+else
+    % Reset holdVar
+    holdVar = 0;
+    
+end
+
+%% True optimum
+optionu = optimoptions('fmincon','Display','off');
+xGuess = [0.08, 0.37, 0.1, 0.25, 0.1, 0.1];
+
+fmincon(@(r)closedPlant(r,xGuess,controller),[0.09, 6],[],[],[],[],[0,0],[1,60],...
+    @(r)deal([g1Fun(controller(r,closedPlant(r,xGuess,controller)),closedPlant(r,xGuess,controller)),...
+    g2Fun(controller(r,closedPlant(r,xGuess,controller)),closedPlant(r,xGuess,controller))],[]),optionu);
+
+
