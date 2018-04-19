@@ -30,8 +30,9 @@ end
 % method of discontinuity: 3 points with same time step, make middle point
 % have a y-values of NaN.
 
-i = any(base.t == base.ti,2);
-i2 = (diff(i)==0 & i(1:end-1) == 1); % all places of double i
+[a,b] = meshgrid(base.t,base.ti);
+i = any(a == b,1);
+i2 = (diff(i)==0 & i(1:end-1) == 1)'; % all places of double i
 i3 = [1;find(i2);numel(i)];
 
 base.t2 = [];

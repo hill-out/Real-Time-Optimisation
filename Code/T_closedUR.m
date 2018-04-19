@@ -8,17 +8,17 @@ Kp = -1000;
 T0 = 120;
 
 
-tFinal = 6000;
+tFinal = 10000;
 steady = 0;
 if steady
     tau = 2000;
 else
-    tau = 30;
+    tau = 300;
 end
 
-K = 0.5;
+K = 0.7;
 
-meth = 0;
+meth = 1.4;
 
 noise = 0;
 
@@ -153,7 +153,7 @@ else
         dudr = bsxfun(@times,bsxfun(@rdivide,pinv(dy_norm),rp0)',u0_opt)';
         
     elseif meth == 1.4
-        dudr = [0, 0, 1/dy(1,3); u0_opt(1)/u0_opt(2), 1, 0]';%u0_opt(1)/u0_opt(2)
+        dudr = [0, 0, 1/dy(1,3); u0_opt(1)/u0_opt(2), 1, 0]';%-(1/dy(1,3)*dy(1,2)+1/dy(1,3)*dy(1,1)*(u0_opt(1)/u0_opt(2)))]';%u0_opt(1)/u0_opt(2)
         
     elseif meth == 1.5 %run NE with FE dudr
         kMax = ceil(tFinal/(2*tau));
@@ -391,7 +391,7 @@ while unsolved
             dudr = bsxfun(@times,bsxfun(@rdivide,pinv(dy_norm),rpi(k,:))',ui_opt(k,:))';
             
         elseif meth == 1.4
-            dudr = [0, 0, 1/dy(1,3); u0_opt(1)/u0_opt(2), 1, 0]';
+            dudr = [0, 0, 1/dy(1,3); ui_opt(end,1)/ui_opt(end,2), 1, 0]';%-(1/dy(1,3)*dy(1,2)+1/dy(1,3)*dy(1,1)*(ui_opt(end,1)/ui_opt(end,2)))]';
             
         elseif meth == 1.5 %run NE with FE dudr
             dudr = zeros(3,2);
